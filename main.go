@@ -149,7 +149,7 @@ func main() {
 		//	"-r", "10",
 		//	"-f", "rawvideo",
 		//	"-")
-		//mainImg := gocv.IMRead("Screenshot 2025-06-26 192855.png", gocv.IMReadColor)
+		//mainImg := gocv.IMRead("screen.png", gocv.IMReadColor)
 		//defer mainImg.Close()
 		tmplImg := gocv.IMRead("mask.png", gocv.IMReadColor)
 		defer tmplImg.Close()
@@ -324,32 +324,33 @@ func draw(hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr
 
 	procReleaseDC.Call(hwnd, hdc)
 }
-func readNextJPEGFrame(r *bufio.Reader) ([]byte, error) {
-	var buf bytes.Buffer
-	started := false
-	var last byte
 
-	for {
-		b, err := r.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-		if !started {
-			if last == 0xFF && b == 0xD8 {
-				buf.WriteByte(0xFF)
-				buf.WriteByte(0xD8)
-				started = true
-			}
-			last = b
-			continue
-		}
-		buf.WriteByte(b)
-		if last == 0xFF && b == 0xD9 {
-			return buf.Bytes(), nil
-		}
-		last = b
-	}
-}
+//func readNextJPEGFrame(r *bufio.Reader) ([]byte, error) {
+//	var buf bytes.Buffer
+//	started := false
+//	var last byte
+//
+//	for {
+//		b, err := r.ReadByte()
+//		if err != nil {
+//			return nil, err
+//		}
+//		if !started {
+//			if last == 0xFF && b == 0xD8 {
+//				buf.WriteByte(0xFF)
+//				buf.WriteByte(0xD8)
+//				started = true
+//			}
+//			last = b
+//			continue
+//		}
+//		buf.WriteByte(b)
+//		if last == 0xFF && b == 0xD9 {
+//			return buf.Bytes(), nil
+//		}
+//		last = b
+//	}
+//}
 
 func callDefWindowProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 	ret, _, _ := procDefWindowProcW.Call(uintptr(hwnd), uintptr(msg), wParam, lParam)
