@@ -1,25 +1,29 @@
 package main
 
-/*
-#cgo pkg-config: opencv4
-#include <opencv2/core/version.hpp>
-const char* cvVersion() {
-    return CV_VERSION;
-}
-*/
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"github.com/otiai10/gosseract/v2"
 	"gocv.io/x/gocv"
 	"image"
-	"image/color"
-	"io"
 	"log"
-	"math"
 	"os/exec"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 )
+
+/*
+#cgo pkg-config: lept tesseract
+#cgo CXXFLAGS: -std=c++0x
+#cgo CPPFLAGS: -Wno-unused-result
+#include <stdlib.h>
+#include <stdbool.h>
+*/
+import "C"
 
 var (
 	user32   = syscall.NewLazyDLL("user32.dll")
@@ -49,6 +53,7 @@ var (
 	procDeleteObject   = gdi32.NewProc("DeleteObject")
 	procSetTextColor   = gdi32.NewProc("SetTextColor")
 	procSetBkMode      = gdi32.NewProc("SetBkMode")
+	procCreateFont     = gdi32.NewProc("CreateFontW")
 	procTextOutW       = gdi32.NewProc("TextOutW")
 )
 
@@ -129,22 +134,36 @@ func main() {
 	// Show
 	procShowWindow.Call(hwnd, SW_SHOWNOACTIVATE)
 	procUpdateWindow.Call(hwnd)
-
 	var msg MSG
 
 	//go draw(hwnd, 200, 200, 600, 600)
 
 	go func() {
+		//cmd := exec.Command("ffmpeg",
+		//	"-f", "gdigrab", // або інше джерело
+		//	"-i", "desktop",
+		//	"-pix_fmt", "bgr24",
+		//	"-vcodec", "rawvideo",
+		//	"-an", // без аудіо
+		//	"-sn", // без субтитрів
+		//	"-r", "10",
+		//	"-f", "rawvideo",
+		//	"-")
+		//mainImg := gocv.IMRead("Screenshot 2025-06-26 192855.png", gocv.IMReadColor)
+		//defer mainImg.Close()
+		tmplImg := gocv.IMRead("mask.png", gocv.IMReadColor)
+		defer tmplImg.Close()
+
 		cmd := exec.Command("ffmpeg",
-			"-f", "gdigrab", // або інше джерело
+			"-f", "gdigrab", // screen capture
+			"-framerate", "1", // 1 кадр/сек (зменши для тесту)
 			"-i", "desktop",
-			"-pix_fmt", "bgr24",
-			"-vcodec", "rawvideo",
-			"-an", // без аудіо
-			"-sn", // без субтитрів
-			"-r", "10",
-			"-f", "rawvideo",
-			"-")
+			//"-vframes", "1", // лише один кадр
+			"-f", "image2pipe",
+			"-vcodec", "mjpeg", // або "png"
+			"-s", "1920x1080",
+			"pipe:1",
+		)
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -155,94 +174,90 @@ func main() {
 			log.Fatal(err)
 		}
 
-		resized := gocv.NewMat()
-		defer resized.Close()
-
-		frame := gocv.NewMat()
-		defer frame.Close()
-
-		gray := gocv.NewMat()
-		defer gray.Close()
-
-		prevGray := gocv.NewMat()
-		defer prevGray.Close()
-		fullHD := image.Pt(1920, 1080)
-		_ = image.Pt(1920, 1080)
-
-		buf := make([]byte, frameSize)
-		net := gocv.ReadNet("frozen_east_text_detection.pb", "")
-		defer net.Close()
-		outputs := []gocv.Mat{
-			gocv.NewMat(),
-			gocv.NewMat(),
+		//buf := make([]byte, frameSize)
+		net := gocv.ReadNet("frozen_east_text_detection1.pb", "")
+		if net.Empty() {
+			log.Fatal("❌ Failed to load EAST model")
 		}
-		defer func() {
-			for _, m := range outputs {
-				m.Close()
-			}
-		}()
-		net.ForwardLayers([]string{"feature_fusion/Conv_7/Sigmoid", "feature_fusion/concat_3"})
-		for {
-			fmt.Println("tick")
 
-			// читаємо один кадр
-			_, err := io.ReadFull(stdout, buf)
+		//fmt.Println(net.GetLayerNames())
+
+		defer net.Close()
+		client := gosseract.NewClient()
+		defer client.Close()
+		//client.SetLanguage("eng")
+		reader := bufio.NewReader(stdout)
+		img := gocv.NewMat()
+		defer img.Close()
+		var (
+			minX uintptr
+			minY uintptr
+			maxX uintptr
+			maxY uintptr
+		)
+		reg := regexp.MustCompile("\\s+")
+		for {
+			frame, err := readNextJPEGFrame(reader)
+			fmt.Println("tick")
 			if err != nil {
-				log.Println("End of stream or error:", err)
+				fmt.Println("Read frame error:", err)
 				break
 			}
-			//go clearOverlay(hwnd)
-			fmt.Println("tick")
-			frame, _ = gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8UC3, buf)
-			buf = make([]byte, frameSize)
-			if frame.Empty() {
-				log.Println("Empty frame or error")
-				continue
-			}
-			boxes, _ := decodeEAST(outputs[0], outputs[1], 0.5)
-			fmt.Println(boxes)
-			gocv.Resize(frame, &resized, fullHD, 0, 0, gocv.InterpolationLinear)
-			gocv.CvtColor(resized, &gray, gocv.ColorBGRToGray)
-			gocv.Threshold(gray, &gray, 0, 255, gocv.ThresholdBinaryInv+gocv.ThresholdOtsu)
-			//gocv.GaussianBlur(gray, &gray, image.Pt(21, 21), 0, 0, gocv.BorderDefault)
-			if !prevGray.Empty() {
-				diff := gocv.NewMat()
-				gocv.AbsDiff(gray, prevGray, &diff)
+			img, err = gocv.IMDecode(frame, gocv.IMReadColor)
+			// Create матрицю результату
+			resultCols := img.Cols() - tmplImg.Cols() + 1
+			resultRows := img.Rows() - tmplImg.Rows() + 1
+			result := gocv.NewMatWithSize(resultRows, resultCols, gocv.MatTypeCV32F)
+			//defer result.Close()
 
-				thresh := gocv.NewMat()
-				gocv.Threshold(diff, &thresh, 25, 255, gocv.ThresholdBinary)
-				diff.Close()
+			//gocv.CvtColor(img, &img, gocv.ColorBGRToHSV)
+			//gocv.CvtColor(tmplImg, &tmplImg, gocv.ColorBGRToHSV) // Template Matching
+			//gocv.MatchTemplate(img, tmplImg, &result, gocv.TmCcoeffNormed, gocv.NewMat())
+			gocv.MatchTemplate(img, tmplImg, &result, gocv.TmSqdiff, gocv.NewMat())
 
-				gocv.Dilate(thresh, &thresh, gocv.NewMat())
-
-				contours := gocv.FindContours(thresh, gocv.RetrievalExternal, gocv.ChainApproxSimple)
-				thresh.Close()
-
+			// Знаходимо точку з найкращим збігом
+			//_, maxVal, _, maxLoc := gocv.MinMaxLoc(result)
+			minVal, _, maxLoc, _ := gocv.MinMaxLoc(result)
+			if minVal <= 100000 {
+				fmt.Printf("🔍 Min diff: %.6f at X=%d Y=%d\n", minVal, maxLoc.X, maxLoc.Y)
+				//fmt.Printf("🎯 Match at: %sx%s (score: %.3f)\n", maxLoc.X, maxLoc.Y, maxVal)
+				//if maxVal >= 0.8 {
 				clearOverlay(hwnd)
-				for i := 0; i < contours.Size(); i++ {
-					c := contours.At(i)
-
-					//area := gocv.ContourArea(c)
-					//if area < 1000 {
-					//	continue
-					//}
-					//if area > 1000 {
-					//	rect := gocv.BoundingRect(c)
-					//	gocv.Rectangle(&resized, rect, color.RGBA{0, 255, 0, 0}, 2)
-					//}
-
-					rect := gocv.BoundingRect(c)
-					if rect.Dx() > 50 && rect.Dy() > 20 {
-						go draw(hwnd, uintptr(rect.Min.X), uintptr(rect.Min.Y), uintptr(rect.Max.X), uintptr(rect.Max.Y))
-					}
-					fmt.Println(rect)
-					//gocv.Rectangle(&resized, rect, color.RGBA{0, 255, 0, 0}, 2)
-				}
-				contours.Close()
+				minX = uintptr(maxLoc.X - 328)
+				minY = uintptr(maxLoc.Y + 130)
+				maxX = uintptr(maxLoc.X + tmplImg.Size()[1])
+				maxY = uintptr(maxLoc.Y + tmplImg.Size()[0])
+				go draw(hwnd, minX, minY, maxX, maxY, "")
 			}
-			gray.CopyTo(&prevGray)
-			//if window.WaitKey(1) == 27 { // ESC
-			//	break
+			if minX != 0 && minY != 0 && maxX != 0 && maxY != 0 {
+				rect := image.Rect(int(minX), int(minY), int(maxX), int(maxY)) // x1, y1, x2, y2
+				roi := img.Region(rect)
+				//defer roi.Close()
+				buf, err := gocv.IMEncode(".png", roi)
+				if err != nil {
+					log.Fatal("❌ Не вдалося закодувати зображення:", err)
+				}
+
+				client.SetImageFromBytes(buf.GetBytes())
+
+				text, err := client.Text()
+				if err != nil {
+					log.Println("❌ Помилка розпізнавання:", err)
+					continue
+				}
+				text = reg.ReplaceAllString(strings.ReplaceAll(text, "\n", " "), " ")
+				fmt.Println("🧾 Текст у прямокутнику:", text)
+				if strings.Contains(text, "has been affected by your Dreaming Spirit") {
+					go func() {
+						for i := 30; i > 0; i-- {
+							clearOverlay(hwnd)
+							draw(hwnd, 0, 0, 0, 0, fmt.Sprintf("Dreaming spirit: %d", i))
+							time.Sleep(time.Second)
+						}
+					}()
+				}
+
+			}
 			//}
 		}
 	}()
@@ -262,53 +277,78 @@ func main() {
 	fmt.Println("end")
 }
 
-func draw(hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr) {
+func createFont(height int32) uintptr {
+	hFont, _, _ := procCreateFont.Call(
+		uintptr(height), 0, 0, 0, // height, width, escapement, orientation
+		400, 0, 0, 0, // weight, italic, underline, strikeout
+		1, 0, 0, 0, // charset, outPrecision, clipPrecision, quality
+		uintptr(1), // pitchAndFamily
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Arial"))),
+	)
+	return hFont
+}
+func draw(hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr, text string) {
 	hdc, _, _ := procGetDC.Call(hwnd)
-	// Create red pen (BGR format: 0x00RRGGBB → 0x000000FF = red)
-	pen, _, _ := procCreatePen.Call(PS_SOLID, 3, 0x000000FF)
-	oldPen, _, _ := procSelectObject.Call(hdc, pen)
+	if left != 0 && top != 0 && right != 0 && bottom != 0 {
 
-	// Select NULL_BRUSH to avoid filling the rectangle
-	nullBrush, _, _ := procGetStockObject.Call(5)
-	oldBrush, _, _ := procSelectObject.Call(hdc, nullBrush)
+		// Create red pen (BGR format: 0x00RRGGBB → 0x000000FF = red)
+		pen, _, _ := procCreatePen.Call(PS_SOLID, 3, 0x008000)
+		oldPen, _, _ := procSelectObject.Call(hdc, pen)
 
-	// Draw transparent (non-filled) red rectangle
-	procRectangle.Call(hdc, left, top, right, bottom)
+		// Select NULL_BRUSH to avoid filling the rectangle
+		nullBrush, _, _ := procGetStockObject.Call(5)
+		oldBrush, _, _ := procSelectObject.Call(hdc, nullBrush)
 
+		// Draw transparent (non-filled) red rectangle
+		procRectangle.Call(hdc, left, top, right, bottom)
+		procSelectObject.Call(hdc, oldPen)
+		procSelectObject.Call(hdc, oldBrush)
+		procDeleteObject.Call(pen)
+	}
+
+	if text != "" {
+		font := createFont(48)
+		hdc, _, _ := procGetDC.Call(hwnd)
+		procSelectObject.Call(hdc, font)
+		defer procDeleteObject.Call(font) //
+		procSetTextColor.Call(hdc, 0x00FF00)
+		procSetBkMode.Call(hdc, BKMODE_TRANSPARENT)
+		tx := syscall.StringToUTF16Ptr(text)
+		procTextOutW.Call(hdc, 770, 100, uintptr(unsafe.Pointer(tx)), uintptr(len(text)))
+	}
 	// Optionally draw text (commented out for clarity)
-	// procSetTextColor.Call(hdc, 0x00FFFFFF) // white
-	// procSetBkMode.Call(hdc, BKMODE_TRANSPARENT)
-	// text := syscall.StringToUTF16Ptr("Hello Overlay")
-	// procTextOutW.Call(hdc, 110, 130, uintptr(unsafe.Pointer(text)), uintptr(len("Hello Overlay")))
+	//
+	//
 
 	// Cleanup
-	procSelectObject.Call(hdc, oldPen)
-	procSelectObject.Call(hdc, oldBrush)
-	procDeleteObject.Call(pen)
-	procReleaseDC.Call(hwnd, hdc)
-	//hdc, _, _ := procGetDC.Call(hwnd)
-	//
-	//// Red pen
-	//pen, _, _ := procCreatePen.Call(PS_SOLID, 3, 0x000000FF) // red: BGR
-	//oldPen, _, _ := procSelectObject.Call(hdc, pen)
-	//
-	//// Rectangle
-	//procRectangle.Call(hdc, left, top, right, bottom)
-	//
-	//// Text settings
-	////procSetTextColor.Call(hdc, 0x00FFFFFF) // white
-	////procSetBkMode.Call(hdc, BKMODE_TRANSPARENT)
-	////text := syscall.StringToUTF16Ptr("Hello Overlay")
-	////procTextOutW.Call(hdc, 110, 130, uintptr(unsafe.Pointer(text)), uintptr(len("Hello Overlay")))
-	//
-	//// Cleanup
-	//procSelectObject.Call(hdc, oldPen)
-	//procDeleteObject.Call(pen)
-	//procReleaseDC.Call(hwnd, hdc)
-}
 
-func colorRGBA(r, g, b uint8) color.RGBA {
-	return color.RGBA{R: r, G: g, B: b, A: 255}
+	procReleaseDC.Call(hwnd, hdc)
+}
+func readNextJPEGFrame(r *bufio.Reader) ([]byte, error) {
+	var buf bytes.Buffer
+	started := false
+	var last byte
+
+	for {
+		b, err := r.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		if !started {
+			if last == 0xFF && b == 0xD8 {
+				buf.WriteByte(0xFF)
+				buf.WriteByte(0xD8)
+				started = true
+			}
+			last = b
+			continue
+		}
+		buf.WriteByte(b)
+		if last == 0xFF && b == 0xD9 {
+			return buf.Bytes(), nil
+		}
+		last = b
+	}
 }
 
 func callDefWindowProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
@@ -331,41 +371,4 @@ func clearOverlay(hwnd uintptr) {
 
 	procDeleteObject.Call(brush)
 	procReleaseDC.Call(hwnd, hdc)
-}
-func decodeEAST(scores, geometry gocv.Mat, confThreshold float32) ([]image.Rectangle, []float32) {
-	sz := scores.Size()
-	height := sz[2]
-	width := sz[3]
-
-	var boxes []image.Rectangle
-	var confidences []float32
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			score := scores.GetFloatAt(0, 0, y, x)
-			if score < confThreshold {
-				continue
-			}
-
-			offsetX := float32(x) * 4.0
-			offsetY := float32(y) * 4.0
-
-			angle := geometry.GetFloatAt(0, 4, y, x)
-			cosA := float32(math.Cos(float64(angle)))
-			sinA := float32(math.Sin(float64(angle)))
-
-			h := geometry.GetFloatAt(0, 0, y, x) + geometry.GetFloatAt(0, 2, y, x)
-			w := geometry.GetFloatAt(0, 1, y, x) + geometry.GetFloatAt(0, 3, y, x)
-
-			endX := offsetX + cosA*geometry.GetFloatAt(0, 1, y, x) + sinA*geometry.GetFloatAt(0, 2, y, x)
-			endY := offsetY - sinA*geometry.GetFloatAt(0, 1, y, x) + cosA*geometry.GetFloatAt(0, 2, y, x)
-			startX := endX - w
-			startY := endY - h
-
-			box := image.Rect(int(startX), int(startY), int(endX), int(endY))
-			boxes = append(boxes, box)
-			confidences = append(confidences, score)
-		}
-	}
-	return boxes, confidences
 }
