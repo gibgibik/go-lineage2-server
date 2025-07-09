@@ -22,7 +22,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -30,11 +29,26 @@ import (
 )
 
 type Stat struct {
-	CP         string
-	HP         string
-	MP         string
-	EXP        string
-	LastUpdate int64
+	CP struct {
+		Value      string
+		LastUpdate int64
+	}
+	HP struct {
+		Value      string
+		LastUpdate int64
+	}
+	MP struct {
+		Value      string
+		LastUpdate int64
+	}
+	EXP struct {
+		Value      string
+		LastUpdate int64
+	}
+	Target struct {
+		HpPercent  float64
+		LastUpdate int64
+	}
 }
 
 func createRequestError(w http.ResponseWriter, err string, code int) {
@@ -69,6 +83,7 @@ func main() {
 			return
 		}
 	}()
+
 	//file, err := os.Open("Untitled.png")
 	//if err != nil {
 	//	panic(err)
@@ -117,15 +132,17 @@ func main() {
 
 	cmd := exec.Command("ffmpeg",
 		"-f", "gdigrab", // screen capture
-		"-framerate", "1", // 1 кадр/сек (зменши для тесту)
+		"-framerate", "2", // 1 кадр/сек (зменши для тесту)
 		//"-vframes", "1", // лише один кадр
-		"-video_size", "250x105",
-		"-offset_x", "1",
-		"-offset_y", "30",
+		//"-video_size", "250x105",
+		//"-video_size", "1920x1080",
+		//"-offset_x", "1",
+		//"-offset_y", "30",
 		//"-show_region", "1",
 		"-i", "desktop",
 		"-f", "image2pipe",
 		"-vcodec", "mjpeg", // або "png"
+		"-q:v", "1",
 		//"-s", "1920x1080",
 		"pipe:1",
 	)
@@ -150,7 +167,7 @@ func main() {
 		//	panic(err)
 		//}
 		//return
-		fmt.Println("tick")
+		fmt.Println(time.Now().Unix(), "tick")
 		if err != nil {
 			fmt.Println("Read frame error:", err)
 			break
@@ -159,14 +176,20 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
 		// Threshold value (0-255)
 		const threshold = 185
-		statBounds := imgJpeg.Bounds()
+		statRect := image.Rect(1, 30, 251, 135)
+		statImg := imgJpeg.(interface {
+			SubImage(r image.Rectangle) image.Image
+		}).SubImage(statRect)
+		statBounds := statImg.Bounds()
+
 		newImg := image.NewGray(statBounds)
 		// Convert each pixel to grayscale + threshold
 		for y := statBounds.Min.Y; y < statBounds.Max.Y; y++ {
 			for x := statBounds.Min.X; x < statBounds.Max.X; x++ {
-				r, g, b, _ := imgJpeg.At(x, y).RGBA()
+				r, g, b, _ := statImg.At(x, y).RGBA()
 				// Convert to 8-bit (0-255)
 				r8 := uint8(r >> 8)
 				g8 := uint8(g >> 8)
@@ -187,7 +210,17 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		_ = os.WriteFile("frame.jpg", buf.Bytes(), 0644)
+
+		//var buf1 bytes.Buffer
+		//err = jpeg.Encode(&buf1, targetImg, nil)
+		//_ = os.WriteFile("frame2.jpg", buf1.Bytes(), 0644)
+		//
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
+		//
+		//_ = os.WriteFile("frame1.jpg", buf.Bytes(), 0644)
+		//return
 		//if err != nil {
 		//	panic(err)
 		//}
@@ -202,24 +235,80 @@ func main() {
 			log.Fatal(err)
 		}
 		pieces := strings.Split(text, "\n")
+		targetRect := image.Rect(787, 0, 1133, 28)
+		targetImg := imgJpeg.(interface {
+			SubImage(r image.Rectangle) image.Image
+		}).SubImage(targetRect)
+		targetBounds := targetImg.Bounds()
+		targetDelta := uint8(5)
+		targetR, targetG, targetB := uint8(254), uint8(0), uint8(0)
+		var targetResultRes int
+		for x := targetBounds.Min.X; x < targetBounds.Max.X; x++ {
+			r, g, b, _ := targetImg.At(x, 1).RGBA()
+			r8 := uint8(r >> 8)
+			g8 := uint8(g >> 8)
+			b8 := uint8(b >> 8)
+
+			if withinDelta(r8, targetR, targetDelta) &&
+				withinDelta(g8, targetG, targetDelta) &&
+				withinDelta(b8, targetB, targetDelta) {
+				targetResultRes = targetResultRes + 1
+
+				// Detected: mark with bright green
+			}
+			//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
+		}
+		percent := float64(targetResultRes) / (float64(targetBounds.Max.X-targetBounds.Min.X) / float64(100))
 		statLock.Lock()
+		lastUpdate := time.Now().Unix()
+		stat.Target = struct {
+			HpPercent  float64
+			LastUpdate int64
+		}{HpPercent: round(percent, 2), LastUpdate: lastUpdate}
 		for idx, piece := range pieces {
 			piece = strings.TrimSpace(piece)
 			switch idx {
 			case 0:
-				stat.CP = replaceMidSlash(piece)
+				piece = replaceMidSlash(piece)
+				if len(piece) > 3 {
+					stat.CP = struct {
+						Value      string
+						LastUpdate int64
+					}{Value: piece, LastUpdate: lastUpdate}
+				}
 			case 1:
-				stat.HP = replaceMidSlash(piece)
+				piece = replaceMidSlash(piece)
+				if len(piece) > 3 {
+					stat.HP = struct {
+						Value      string
+						LastUpdate int64
+					}{Value: piece, LastUpdate: lastUpdate}
+				}
 			case 2:
-				stat.MP = replaceMidSlash(piece)
+				piece = replaceMidSlash(piece)
+				if len(piece) > 3 {
+					stat.MP = struct {
+						Value      string
+						LastUpdate int64
+					}{Value: piece, LastUpdate: lastUpdate}
+				}
 			case 3:
 				//stat.EXP = piece
 			}
 		}
-		stat.LastUpdate = time.Now().Unix()
 		statLock.Unlock()
 	}
 	//}
+}
+func round(val float64, precision uint) float64 {
+	ratio := math.Pow(10, float64(precision))
+	return math.Round(val*ratio) / ratio
+}
+func withinDelta(val, target, delta uint8) bool {
+	if val >= target {
+		return val-target <= delta
+	}
+	return target-val <= delta
 }
 
 func replaceMidSlash(s string) string {
