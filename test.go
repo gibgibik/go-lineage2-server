@@ -1,17 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"github.com/otiai10/gosseract/v2"
-	"gocv.io/x/gocv"
-	"image"
-	"image/color"
-	"image/png"
-	"log"
-	"math"
-	"os"
-)
-
 /*
 #cgo pkg-config: lept tesseract
 #cgo CXXFLAGS: -std=c++0x
@@ -20,274 +8,97 @@ import (
 #include <stdbool.h>
 */
 import "C"
-
-var (
-	excludeBoundsArea = []image.Rectangle{
-		image.Rect(0, 0, 247, 104),
-		image.Rect(0, 590, 370, 1074),
-		image.Rect(697, 915, 1273, 1074),
-	}
+import (
+	"fmt"
+	"image"
+	"image/jpeg"
+	"os"
+	"strconv"
 )
 
 func main() {
-	threshold := 0.9
-	nms := 0.4
-	resizeWidth := 1920
-	resizeHeight := 1088
-	f, _ := os.Open("3.png")
-	//img, _ := png.Decode(f)
-	imgConfig, _ := png.DecodeConfig(f)
-	mat := gocv.IMRead("3.png", gocv.IMReadColor)
-	imgHeight := imgConfig.Height
-	imgWidth := imgConfig.Width
-	rW := float64(imgWidth) / float64(resizeWidth)
-	rH := float64(imgHeight) / float64(resizeHeight)
-
-	client := gosseract.NewClient()
-	//client.SetLanguage("eng")
-	defer client.Close()
-	net := gocv.ReadNet("frozen_east_text_detection1.pb", "")
-	defer net.Close()
-	if net.Empty() {
-		log.Fatal("❌ Failed to load EAST model")
+	// Open the existing PNG file
+	file, err := os.Open("1.jpg")
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
 	}
-	// Prepare blob
-	blob := gocv.BlobFromImage(mat, 1.0, image.Pt(int(resizeWidth), int(resizeHeight)), gocv.NewScalar(123.68, 116.78, 103.94, 0), true, false)
-	defer blob.Close()
-	net.SetInput(blob, "")
-	// Define output layers
-	outputNames := []string{"feature_fusion/Conv_7/Sigmoid", "feature_fusion/concat_3"}
-	outputBlobs := net.ForwardLayers(outputNames)
-	//
-	//Decode results (this part can be tricky, depends on your task)
-	scores := outputBlobs[0]
-	geometry := outputBlobs[1]
+	defer file.Close()
 
-	rotatedBoxes, confidences := decodeBoundingBoxes(scores, geometry, float32(threshold))
-	boxes := []image.Rectangle{}
-	for _, rotatedBox := range rotatedBoxes {
-		//if !checkExcludeBox(rotatedBox.BoundingRect) {
-		//	continue
-		//}
-		boxes = append(boxes, rotatedBox.BoundingRect)
+	// Decode PNG
+	jpegImg, err := jpeg.Decode(file)
+	if err != nil {
+		panic(err)
 	}
-	// Only Apply NMS when there are at least one box
-	indices := make([]int, len(boxes))
-	if len(boxes) > 0 {
-		indices = gocv.NMSBoxes(boxes, confidences, float32(threshold), float32(nms))
+	// Create an RGBA image from the decoded image
+	statsPointers := []struct {
+		delta []uint8
+		rest  image.Rectangle
+	}{
+		{delta: []uint8{192, 152, 45}, rest: image.Rectangle{image.Point{33, 49}, image.Point{238, 49}}},
+		{delta: []uint8{195, 64, 44}, rest: image.Rectangle{image.Point{33, 66}, image.Point{238, 66}}},
+		{delta: []uint8{41, 123, 194}, rest: image.Rectangle{image.Point{33, 84}, image.Point{238, 84}}},
 	}
-	// Resize indices to only include those that have values other than zero
-	var numIndices int = 0
-	for _, value := range indices {
-		if value != 0 {
-			numIndices++
-		}
-	}
-	indices = indices[0:numIndices]
-	//return
-	for i := 0; i < len(indices); i++ {
-		// get 4 corners of the rotated rect
-		verticesMat := gocv.NewMat()
-		if err := gocv.BoxPoints(rotatedBoxes[indices[i]], &verticesMat); err != nil {
-			log.Fatal(err)
-		}
 
-		//
-		//	// scale the bounding box coordinates based on the respective ratios
-		vertices := []image.Point{}
-		var minX, minY, maxX, maxY int
-		for j := 0; j < 4; j++ {
-			p1 := image.Pt(
-				int(verticesMat.GetFloatAt(j, 0)*float32(rW)),
-				int(verticesMat.GetFloatAt(j, 1)*float32(rH)),
-			)
-
-			//p2 := image.Pt(
-			//	int(verticesMat.GetFloatAt((j+1)%4, 0)*float32(rW)),
-			//	int(verticesMat.GetFloatAt((j+1)%4, 1)*float32(rH)),
-			//)
-			if minX == 0 || minX > p1.X {
-				minX = p1.X
+	//targetR, targetG, targetB := uint8(254), uint8(0), uint8(0)
+	colors := map[int]struct {
+		match     int
+		not_match int
+	}{
+		0: {match: 0, not_match: 0},
+		1: {match: 0, not_match: 0},
+		2: {match: 0, not_match: 0},
+	}
+	targetDelta := uint8(5)
+	tt := make(map[string]int, 0)
+	for idx, point := range statsPointers {
+		for x := point.rest.Min.X; x < point.rest.Max.X; x++ {
+			r, g, b, _ := jpegImg.At(x, point.rest.Min.Y).RGBA()
+			r8 := uint8(r >> 8)
+			g8 := uint8(g >> 8)
+			b8 := uint8(b >> 8)
+			key := fmt.Sprintf("%s_%s_%s", strconv.Itoa(int(r8)), strconv.Itoa(int(g8)), strconv.Itoa(int(b8)))
+			if _, ok := tt[key]; !ok {
+				tt[key] = 0
 			}
-			if minY == 0 || minY > p1.Y {
-				minY = p1.Y
+			tt[key] += 1
+			if withinDelta(r8, point.delta[0], targetDelta) &&
+				withinDelta(g8, point.delta[1], targetDelta) &&
+				withinDelta(b8, point.delta[2], targetDelta) {
+				//fmt.Println("match")
+				colors[idx] = struct {
+					match     int
+					not_match int
+				}{match: colors[idx].match + 1, not_match: colors[idx].not_match}
+			} else {
+				colors[idx] = struct {
+					match     int
+					not_match int
+				}{match: colors[idx].match, not_match: colors[idx].not_match + 1}
 			}
-			if maxX == 0 || maxX < p1.X {
-				maxX = p1.X
-			}
-			if maxY == 0 || maxY < p1.Y {
-				maxY = p1.Y
-			}
-			vertices = append(vertices, p1)
-			//gocv.Line(&mat, p1, p2, color.RGBA{0, 255, 0, 0}, 1)
+			//Detected: mark with bright green
+			//}
+			//// Grayscale average
+			//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
+			//fmt.Println(r8, g8, b8)
+			//if _, ok := colors[cAt]; !ok {
+			//	colors[cAt] = 0
+			//}
+			//colors[cAt]++
 		}
-		rect := image.Rect(minX, minY, maxX, maxY)
-		if !checkExcludeBox(rect) {
-			continue
-		}
-		gocv.Rectangle(&mat, rect, color.RGBA{0, 255, 0, 0}, 1)
-		cropped := fourPointsTransform(mat, gocv.NewPointVectorFromPoints(vertices))
-		//_ = gocv.IMWrite("2.png", cropped)
+		fmt.Println(float32(colors[idx].match) / 2.5)
+		fmt.Println(tt)
+		return
 		//return
-		//gocv.CvtColor(mat, &cropped, gocv.ColorBGRToGray)
-
-		// Create a 4D blob from cropped image
-		blob = gocv.BlobFromImage(cropped, 1/127.5, image.Pt(128, 32), gocv.NewScalar(127.5, 0, 0, 0), false, false) //120?
-		buf, _ := gocv.IMEncode(gocv.PNGFileExt, cropped)
-		client.SetImageFromBytes(buf.GetBytes())
-		fmt.Println(client.Text())
-		//
-		//// Run the recognition model
-		////startTime = time.Now()
-		//result := net.Forward("")
-		////inferenceTime += time.Since(startTime)
-		//
-		// decode the result into text
-		//wordRecognized := decodeText(result)
-		//gocv.PutText(&img, wordRecognized, vertices[1], gocv.FontHersheySimplex, 0.5, color.RGBA{0, 0, 255, 0}, 1)
-
 	}
-	ok := gocv.IMWrite("2.png", mat)
-	if !ok {
-		log.Fatalf("Failed to write image")
-	}
-}
-
-func checkExcludeBox(box image.Rectangle) bool {
-	for _, excludeBox := range excludeBoundsArea {
-		if excludeBox.Min.X <= box.Min.X && excludeBox.Min.Y <= box.Min.Y && excludeBox.Max.X >= box.Max.X && excludeBox.Max.Y >= box.Max.Y {
-			return false
-		}
-	}
-	return true
-}
-
-//func decodeText(scores gocv.Mat) string {
-//	text := ""
-//	alphabet := "0123456789abcdefghijklmnopqrstuvwxyz"
-//
-//	for i := 0; i < scores.Size()[0]; i++ {
-//		scoresChannel := gocv.GetBlobChannel(scores, 0, i)
-//		var c int = 0
-//		var cScore float32 = 0
-//		for j := 0; j < scores.Size()[2]; j++ {
-//			score := scoresChannel.GetFloatAt(0, j)
-//			if cScore < score {
-//				c = j
-//				cScore = score
-//			}
-//		}
-//
-//		if c != 0 {
-//			text += string(alphabet[c-1])
-//		} else {
-//			text += "-"
-//		}
-//	}
-//
-//	// adjacent same letters as well as background text must be removed to get the final output
-//	var charList strings.Builder
-//	for i := 0; i < len(text); i++ {
-//		if string(text[i]) != "-" && !(i > 0 && text[i] == text[i-1]) {
-//			charList.WriteByte(text[i])
-//		}
-//	}
-//
-//	return charList.String()
-//}
-
-func decodeBoundingBoxes(scores gocv.Mat, geometry gocv.Mat, threshold float32) (detections []gocv.RotatedRect, confidences []float32) {
-	scoresChannel := gocv.GetBlobChannel(scores, 0, 0)
-	x0DataChannel := gocv.GetBlobChannel(geometry, 0, 0)
-	x1DataChannel := gocv.GetBlobChannel(geometry, 0, 1)
-	x2DataChannel := gocv.GetBlobChannel(geometry, 0, 2)
-	x3DataChannel := gocv.GetBlobChannel(geometry, 0, 3)
-	angleChannel := gocv.GetBlobChannel(geometry, 0, 4)
-
-	for y := 0; y < scoresChannel.Rows(); y++ {
-		for x := 0; x < scoresChannel.Cols(); x++ {
-
-			// Extract data from scores
-			score := scoresChannel.GetFloatAt(y, x)
-
-			// If score is lower than threshold score, move to next x
-			if score < threshold {
-				continue
-			}
-
-			x0Data := x0DataChannel.GetFloatAt(y, x)
-			x1Data := x1DataChannel.GetFloatAt(y, x)
-			x2Data := x2DataChannel.GetFloatAt(y, x)
-			x3Data := x3DataChannel.GetFloatAt(y, x)
-			angle := angleChannel.GetFloatAt(y, x)
-
-			// Calculate offset
-			// Multiple by 4 because feature maps are 4 time less than input image.
-			offsetX := x * 4.0
-			offsetY := y * 4.0
-
-			// Calculate cos and sin of angle
-			cosA := math.Cos(float64(angle))
-			sinA := math.Sin(float64(angle))
-
-			h := x0Data + x2Data
-			w := x1Data + x3Data
-
-			// Calculate offset
-			offset := []float64{
-				(float64(offsetX) + cosA*float64(x1Data) + sinA*float64(x2Data)),
-				(float64(offsetY) - sinA*float64(x1Data) + cosA*float64(x2Data)),
-			}
-
-			// Find points for rectangle
-			p1 := []float64{
-				(-sinA*float64(h) + offset[0]),
-				(-cosA*float64(h) + offset[1]),
-			}
-			p3 := []float64{
-				(-cosA*float64(w) + offset[0]),
-				(sinA*float64(w) + offset[1]),
-			}
-
-			center := image.Pt(
-				int(0.5*(p1[0]+p3[0])),
-				int(0.5*(p1[1]+p3[1])),
-			)
-
-			detections = append(detections, gocv.RotatedRect{
-				Points: []image.Point{
-					{int(p1[0]), int(p1[1])},
-					{int(p3[0]), int(p3[1])},
-				},
-				BoundingRect: image.Rect(
-					int(p1[0]), int(p1[1]),
-					int(p3[0]), int(p3[1]),
-				),
-				Center: center,
-				Width:  int(w),
-				Height: int(h),
-				Angle:  float64(-1 * angle * 180 / math.Pi),
-			})
-			confidences = append(confidences, score)
-		}
-	}
-
-	// Return detections and confidences
+	fmt.Println(colors)
 	return
+
 }
 
-func fourPointsTransform(frame gocv.Mat, vertices gocv.PointVector) gocv.Mat {
-	outputSize := image.Pt(100, 32)
-	targetVertices := gocv.NewPointVectorFromPoints([]image.Point{
-		image.Pt(0, outputSize.Y-1),
-		image.Pt(0, 0),
-		image.Pt(outputSize.X-1, 0),
-		image.Pt(outputSize.X-1, outputSize.Y-1),
-	})
-
-	result := gocv.NewMat()
-	rotationMatrix := gocv.GetPerspectiveTransform(vertices, targetVertices)
-	gocv.WarpPerspective(frame, &result, rotationMatrix, outputSize)
-
-	return result
+func withinDelta(val, target, delta uint8) bool {
+	if val >= target {
+		return val-target <= delta
+	}
+	return target-val <= delta
 }

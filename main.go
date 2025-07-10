@@ -277,16 +277,6 @@ func main() {
 	fmt.Println("end")
 }
 
-func createFont(height int32) uintptr {
-	hFont, _, _ := procCreateFont.Call(
-		uintptr(height), 0, 0, 0, // height, width, escapement, orientation
-		400, 0, 0, 0, // weight, italic, underline, strikeout
-		1, 0, 0, 0, // charset, outPrecision, clipPrecision, quality
-		uintptr(1), // pitchAndFamily
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Arial"))),
-	)
-	return hFont
-}
 func draw(hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr, text string) {
 	hdc, _, _ := procGetDC.Call(hwnd)
 	if left != 0 && top != 0 && right != 0 && bottom != 0 {

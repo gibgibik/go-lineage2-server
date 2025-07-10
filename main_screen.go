@@ -25,7 +25,9 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+	"unsafe"
 )
 
 type Stat struct {
@@ -51,13 +53,77 @@ type Stat struct {
 	}
 }
 
+const (
+	WS_EX_LAYERED     = 0x00080000
+	WS_EX_TRANSPARENT = 0x00000020
+	WS_EX_TOPMOST     = 0x00000008
+	WS_POPUP          = 0x80000000
+	SW_SHOWNOACTIVATE = 4
+
+	PS_SOLID           = 0
+	BKMODE_TRANSPARENT = 1
+)
+
 var (
-	excludeBoundsArea = []image.Rectangle{
+	user32   = syscall.NewLazyDLL("user32.dll")
+	gdi32    = syscall.NewLazyDLL("gdi32.dll")
+	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+
+	procCreateWindowExW  = user32.NewProc("CreateWindowExW")
+	procDefWindowProcW   = user32.NewProc("DefWindowProcW")
+	procDispatchMessageW = user32.NewProc("DispatchMessageW")
+	procGetMessageW      = user32.NewProc("GetMessageW")
+	procRegisterClassExW = user32.NewProc("RegisterClassExW")
+	procSetLayeredAttrs  = user32.NewProc("SetLayeredWindowAttributes")
+	procShowWindow       = user32.NewProc("ShowWindow")
+	procUpdateWindow     = user32.NewProc("UpdateWindow")
+	procTranslateMessage = user32.NewProc("TranslateMessage")
+	procGetModuleHandleW = kernel32.NewProc("GetModuleHandleW")
+	procGetClientRect    = user32.NewProc("GetClientRect")
+	procCreateSolidBrush = gdi32.NewProc("CreateSolidBrush")
+	procFillRect         = user32.NewProc("FillRect")
+
+	procGetDC          = user32.NewProc("GetDC")
+	procReleaseDC      = user32.NewProc("ReleaseDC")
+	procRectangle      = gdi32.NewProc("Rectangle")
+	procGetStockObject = gdi32.NewProc("GetStockObject")
+	procCreatePen      = gdi32.NewProc("CreatePen")
+	procSelectObject   = gdi32.NewProc("SelectObject")
+	procDeleteObject   = gdi32.NewProc("DeleteObject")
+	procSetTextColor   = gdi32.NewProc("SetTextColor")
+	procSetBkMode      = gdi32.NewProc("SetBkMode")
+	procCreateFont     = gdi32.NewProc("CreateFontW")
+	procTextOutW       = gdi32.NewProc("TextOutW")
+	excludeBoundsArea  = []image.Rectangle{
 		image.Rect(0, 0, 247, 104),
 		image.Rect(0, 590, 370, 1074),
 		image.Rect(697, 915, 1273, 1074),
 	}
 )
+
+type POINT struct{ X, Y int32 }
+type MSG struct {
+	Hwnd    syscall.Handle
+	Message uint32
+	WParam  uintptr
+	LParam  uintptr
+	Time    uint32
+	Pt      POINT
+}
+type WNDCLASSEX struct {
+	CbSize        uint32
+	Style         uint32
+	LpfnWndProc   uintptr
+	CbClsExtra    int32
+	CbWndExtra    int32
+	HInstance     syscall.Handle
+	HIcon         syscall.Handle
+	HCursor       syscall.Handle
+	HbrBackground syscall.Handle
+	LpszMenuName  *uint16
+	LpszClassName *uint16
+	HIconSm       syscall.Handle
+}
 
 func createRequestError(w http.ResponseWriter, err string, code int) {
 	w.WriteHeader(code)
@@ -65,6 +131,56 @@ func createRequestError(w http.ResponseWriter, err string, code int) {
 }
 
 func main() {
+	className := syscall.StringToUTF16Ptr("TransparentOverlay")
+	hInstance, _, _ := procGetModuleHandleW.Call(0)
+	// Minimal WndProc
+	wndProc := syscall.NewCallback(func(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
+		return callDefWindowProc(hwnd, msg, wParam, lParam)
+	})
+	// Register class
+	wc := WNDCLASSEX{
+		CbSize:        uint32(unsafe.Sizeof(WNDCLASSEX{})),
+		LpfnWndProc:   wndProc,
+		HInstance:     syscall.Handle(hInstance),
+		LpszClassName: className,
+	}
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
+
+	// Create overlay window
+	hwnd, _, _ := procCreateWindowExW.Call(
+		WS_EX_LAYERED|WS_EX_TRANSPARENT|WS_EX_TOPMOST,
+		uintptr(unsafe.Pointer(className)),
+		0,
+		WS_POPUP,
+		0, 0, 1920, 1080,
+		0, 0, hInstance, 0,
+	)
+
+	// Make transparent
+	procSetLayeredAttrs.Call(hwnd, 0, 0, 0x00000001)
+
+	// Show
+	procShowWindow.Call(hwnd, SW_SHOWNOACTIVATE)
+	procUpdateWindow.Call(hwnd)
+	var msg MSG
+	go mainRun(hwnd)
+	fmt.Println("end")
+	for {
+		r, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+		if r == 0 {
+			fmt.Println("win window exit")
+			return
+		}
+		if int32(r) != 0 {
+			procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
+			procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
+		}
+		time.Sleep(10 * time.Millisecond)
+		fmt.Println("tick main")
+	}
+}
+
+func mainRun(hwnd uintptr) {
 	var stat Stat
 	var statLock sync.RWMutex
 	handle := &http.Server{
@@ -180,7 +296,6 @@ func main() {
 	rH := float64(1080) / float64(resizeHeight)
 	net := gocv.ReadNet("frozen_east_text_detection1.pb", "")
 	defer net.Close()
-
 	for {
 		frame, err := readNextJPEGFrame(reader)
 		//err = os.WriteFile("frame.jpg", frame, 0644)
@@ -317,7 +432,81 @@ func main() {
 				//stat.EXP = piece
 			}
 		}
+		statsPointers := []struct {
+			delta []uint8
+			rest  image.Rectangle
+		}{
+			{delta: []uint8{71, 60, 22}, rest: image.Rectangle{image.Point{33, 49}, image.Point{238, 49}}},
+			{delta: []uint8{104, 34, 22}, rest: image.Rectangle{image.Point{33, 66}, image.Point{238, 66}}},
+			{delta: []uint8{24, 67, 107}, rest: image.Rectangle{image.Point{33, 84}, image.Point{238, 84}}},
+		}
+		colors := map[int]struct {
+			match     int
+			not_match int
+		}{
+			0: {match: 0, not_match: 0},
+			1: {match: 0, not_match: 0},
+			2: {match: 0, not_match: 0},
+		}
+		newTargetDelta := uint8(20)
+		for idx, point := range statsPointers {
+			for x := point.rest.Min.X; x < point.rest.Max.X; x++ {
+				r, g, b, _ := imgJpeg.At(x, point.rest.Min.Y).RGBA()
+
+				r8 := uint8(r >> 8)
+				g8 := uint8(g >> 8)
+				b8 := uint8(b >> 8)
+				//if x == 40 && point.rest.Max.Y == 84 {
+				//	fmt.Printf("Pixel at (%d, %d): R=%d, G=%d, B=%d\n", x, point.rest.Min.Y, r8, g8, b8)
+				//	fmt.Println(r8, g8, b8)
+				//	return
+				//}
+				//if withinDelta(r8, point.delta[0], newTargetDelta) &&
+				//	withinDelta(g8, point.delta[1], newTargetDelta) &&
+				//	withinDelta(b8, point.delta[2], newTargetDelta) {
+				match := false
+				switch idx {
+				case 0:
+					if isYellow(r8, g8, b8, newTargetDelta) {
+						match = true
+					}
+				case 1:
+					if isRed(r8, g8, b8, newTargetDelta) {
+						match = true
+					}
+				case 2:
+					if isBlue(r8, g8, b8, newTargetDelta) {
+						match = true
+					}
+				}
+				if match {
+					//fmt.Println("match")
+					colors[idx] = struct {
+						match     int
+						not_match int
+					}{match: colors[idx].match + 1, not_match: colors[idx].not_match}
+				} else {
+					colors[idx] = struct {
+						match     int
+						not_match int
+					}{match: colors[idx].match, not_match: colors[idx].not_match + 1}
+				}
+				//Detected: mark with bright green
+				//}
+				//// Grayscale average
+				//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
+				//fmt.Println(r8, g8, b8)
+				//if _, ok := colors[cAt]; !ok {
+				//	colors[cAt] = 0
+				//}
+				//colors[cAt]++
+			}
+			fmt.Println(float32(colors[idx].match) / 2.5)
+			//return
+		}
+		fmt.Println(colors)
 		statLock.Unlock()
+		continue
 		mat, _ := gocv.IMDecode(frame, gocv.IMReadColor)
 		blob := gocv.BlobFromImage(mat, 1.0, image.Pt(int(resizeWidth), int(resizeHeight)), gocv.NewScalar(123.68, 116.78, 103.94, 0), true, false)
 		net.SetInput(blob, "")
@@ -350,7 +539,7 @@ func main() {
 			}
 		}
 		indices = indices[0:numIndices]
-		//return
+		clearOverlay(hwnd) //@todo uncomment
 		for i := 0; i < len(indices); i++ {
 			// get 4 corners of the rotated rect
 			verticesMat := gocv.NewMat()
@@ -391,32 +580,85 @@ func main() {
 			if !checkExcludeBox(rect) {
 				continue
 			}
-			//@todo draw!
-			gocv.Rectangle(&mat, rect, color.RGBA{0, 255, 0, 0}, 1)
-			cropped := fourPointsTransform(mat, gocv.NewPointVectorFromPoints(vertices))
-			//_ = gocv.IMWrite("2.png", cropped)
-			//return
-			//gocv.CvtColor(mat, &cropped, gocv.ColorBGRToGray)
 
-			// Create a 4D blob from cropped image
-			blob = gocv.BlobFromImage(cropped, 1/127.5, image.Pt(128, 32), gocv.NewScalar(127.5, 0, 0, 0), false, false) //120?
-			buf, _ := gocv.IMEncode(gocv.PNGFileExt, cropped)
-			npcClient.SetImageFromBytes(buf.GetBytes())
-			fmt.Println(npcClient.Text())
+			//continue //@todo remove
+			//cropped := fourPointsTransform(mat, gocv.NewPointVectorFromPoints(vertices))
+			//// Create a 4D blob from cropped image
+			////blob = gocv.BlobFromImage(cropped, 1/127.5, image.Pt(128, 32), gocv.NewScalar(127.5, 0, 0, 0), false, false) //120?
+			//buf, _ := gocv.IMEncode(gocv.PNGFileExt, cropped)
+			//npcClient.SetImageFromBytes(buf.GetBytes())
+			//foundText, _ := npcClient.Text()
 			//
-			//// Run the recognition model
-			////startTime = time.Now()
-			//result := net.Forward("")
-			////inferenceTime += time.Since(startTime)
-			//
-			// decode the result into text
-			//wordRecognized := decodeText(result)
-			//gocv.PutText(&img, wordRecognized, vertices[1], gocv.FontHersheySimplex, 0.5, color.RGBA{0, 0, 255, 0}, 1)
+			//if _, ok := internal.NpcList[foundText]; ok {
+			//gocv.Rectangle(&mat, rect, color.RGBA{0, 255, 0, 0}, 1)
+
+			go draw(hwnd, uintptr(rect.Min.X), uintptr(rect.Min.Y), uintptr(rect.Max.X), uintptr(rect.Max.Y), "")
+			//_ = gocv.IMWrite("output.png", mat)
+
+			//fmt.Println(1)
+			//}
 
 		}
 		_ = blob.Close()
 	}
-	//}
+} // Function to check if the pixel is blue based on the threshold
+func isBlue(r, g, b, threshold uint8) bool {
+	return b > r+threshold && b > g+threshold
+}
+func isRed(r, g, b, threshold uint8) bool {
+	return r > g+threshold && r > b+threshold
+}
+func isYellow(r, g, b, threshold uint8) bool {
+	// Yellow is when both red and green are higher than blue with the threshold
+	return r > b+threshold && g > b+threshold
+}
+
+func createFont(height int32) uintptr {
+	hFont, _, _ := procCreateFont.Call(
+		uintptr(height), 0, 0, 0, // height, width, escapement, orientation
+		400, 0, 0, 0, // weight, italic, underline, strikeout
+		1, 0, 0, 0, // charset, outPrecision, clipPrecision, quality
+		uintptr(1), // pitchAndFamily
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Arial"))),
+	)
+	return hFont
+}
+func draw(hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr, text string) {
+	hdc, _, _ := procGetDC.Call(hwnd)
+	if left != 0 && top != 0 && right != 0 && bottom != 0 {
+
+		// Create red pen (BGR format: 0x00RRGGBB → 0x000000FF = red)
+		pen, _, _ := procCreatePen.Call(PS_SOLID, 3, 0x008000)
+		oldPen, _, _ := procSelectObject.Call(hdc, pen)
+
+		// Select NULL_BRUSH to avoid filling the rectangle
+		nullBrush, _, _ := procGetStockObject.Call(5)
+		oldBrush, _, _ := procSelectObject.Call(hdc, nullBrush)
+
+		// Draw transparent (non-filled) red rectangle
+		procRectangle.Call(hdc, left, top, right, bottom)
+		procSelectObject.Call(hdc, oldPen)
+		procSelectObject.Call(hdc, oldBrush)
+		procDeleteObject.Call(pen)
+	}
+
+	if text != "" {
+		font := createFont(48)
+		hdc, _, _ := procGetDC.Call(hwnd)
+		procSelectObject.Call(hdc, font)
+		defer procDeleteObject.Call(font) //
+		procSetTextColor.Call(hdc, 0x00FF00)
+		procSetBkMode.Call(hdc, BKMODE_TRANSPARENT)
+		tx := syscall.StringToUTF16Ptr(text)
+		procTextOutW.Call(hdc, 770, 100, uintptr(unsafe.Pointer(tx)), uintptr(len(text)))
+	}
+	// Optionally draw text (commented out for clarity)
+	//
+	//
+
+	// Cleanup
+
+	procReleaseDC.Call(hwnd, hdc)
 }
 func round(val float64, precision uint) float64 {
 	ratio := math.Pow(10, float64(precision))
@@ -601,4 +843,26 @@ func fourPointsTransform(frame gocv.Mat, vertices gocv.PointVector) gocv.Mat {
 	gocv.WarpPerspective(frame, &result, rotationMatrix, outputSize)
 
 	return result
+}
+
+func callDefWindowProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
+	ret, _, _ := procDefWindowProcW.Call(uintptr(hwnd), uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func clearOverlay(hwnd uintptr) {
+	var rect struct {
+		Left, Top, Right, Bottom int32
+	}
+	procGetClientRect.Call(hwnd, uintptr(unsafe.Pointer(&rect)))
+
+	hdc, _, _ := procGetDC.Call(hwnd)
+
+	// Brush: match SetLayeredWindowAttributes color key (e.g., black)
+	brush, _, _ := procCreateSolidBrush.Call(0x000000)
+
+	procFillRect.Call(hdc, uintptr(unsafe.Pointer(&rect)), brush)
+
+	procDeleteObject.Call(brush)
+	procReleaseDC.Call(hwnd, hdc)
 }
