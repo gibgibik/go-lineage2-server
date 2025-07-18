@@ -4,6 +4,7 @@ import (
 	json2 "encoding/json"
 	"errors"
 	"fmt"
+	"github.com/LA/internal/core"
 	"log"
 	"net/http"
 	"sync"
@@ -47,6 +48,7 @@ func StartHttpServer() {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
+	core.IniHttpClient("http://127.0.0.1:/2224") //@todo config
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		StatLock.RLock()
 		json, err := json2.Marshal(Stat)
@@ -93,7 +95,7 @@ func StartHttpServer() {
 }
 
 func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {
-	boxes, err := ocrCl.findBoxes()
+	boxes, err := ocrCl.findBounds()
 	if err != nil {
 		createRequestError(writer, err.Error(), http.StatusInternalServerError)
 		return

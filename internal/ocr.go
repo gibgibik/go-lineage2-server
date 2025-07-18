@@ -1,16 +1,9 @@
 package internal
 
-/*
-#cgo pkg-config: lept tesseract
-#cgo CXXFLAGS: -std=c++0x
-#cgo CPPFLAGS: -Wno-unused-result
-#include <stdlib.h>
-#include <stdbool.h>
-*/
-import "C"
 import (
 	"errors"
 	"fmt"
+	"github.com/LA/internal/core"
 	"github.com/otiai10/gosseract/v2"
 	"gocv.io/x/gocv"
 	"image"
@@ -61,7 +54,7 @@ func (cl *ocrClient) Close() {
 	cl.gc.Close()
 }
 
-func (cl *ocrClient) findBoxes() (BoxesStruct, error) {
+func (cl *ocrClient) findBounds() (BoxesStruct, error) {
 	CurrentImg.Lock()
 	if len(CurrentImg.ImageJpeg) == 0 {
 		return BoxesStruct{}, errors.New("image not found")
@@ -70,6 +63,8 @@ func (cl *ocrClient) findBoxes() (BoxesStruct, error) {
 	copy(cpImg, CurrentImg.ImageJpeg)
 	CurrentImg.Unlock()
 
+	core.HttpCl.Post("/findBounds", cpImg)
+	return BoxesStruct{}, nil
 	mat, _ := gocv.IMDecode(cpImg, gocv.IMReadColor)
 	blob := gocv.BlobFromImage(mat, 1.0, image.Pt(int(resizeWidth), int(resizeHeight)), gocv.NewScalar(123.68, 116.78, 103.94, 0), true, false)
 	net := gocv.ReadNet("frozen_east_text_detection1.pb", "")

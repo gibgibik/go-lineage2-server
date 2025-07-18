@@ -13,8 +13,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/LA/internal"
-	"github.com/otiai10/gosseract/v2"
-	"gocv.io/x/gocv"
 	"image"
 	"image/jpeg"
 	"log"
@@ -100,23 +98,25 @@ func mainRun(hwnd uintptr) {
 		log.Fatal(err)
 	}
 	reader := bufio.NewReader(stdout)
-	img := gocv.NewMat()
-	defer img.Close()
-	plStatClient := gosseract.NewClient()
-	plStatClient.SetVariable("tessedit_char_whitelist", "0123456789/% ")
-	defer plStatClient.Close()
+	//img := gocv.NewMat()
+	//defer img.Close()
 
-	npcClient := gosseract.NewClient()
-	npcClient.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ")
-	defer npcClient.Close()
+	//plStatClient := gosseract.NewClient()
+	//plStatClient.SetVariable("tessedit_char_whitelist", "0123456789/% ")
+	//defer plStatClient.Close()
+
+	//npcClient := gosseract.NewClient()
+	//npcClient.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ")
+	//defer npcClient.Close()
+
 	//npcThreshold := 0.9
 	//npcNms := 0.4
 	//resizeWidth := 1920
 	//resizeHeight := 1088
 	//rW := float64(1920) / float64(resizeWidth)
 	//rH := float64(1080) / float64(resizeHeight)
-	net := gocv.ReadNet("frozen_east_text_detection1.pb", "")
-	defer net.Close()
+	//net := gocv.ReadNet("frozen_east_text_detection1.pb", "")
+	//defer net.Close()
 	for {
 		frame, err := readNextJPEGFrame(reader)
 		internal.CurrentImg.Lock()
@@ -533,20 +533,4 @@ func readNextJPEGFrame(r *bufio.Reader) ([]byte, error) {
 
 		last = b
 	}
-}
-
-func fourPointsTransform(frame gocv.Mat, vertices gocv.PointVector) gocv.Mat {
-	outputSize := image.Pt(100, 32)
-	targetVertices := gocv.NewPointVectorFromPoints([]image.Point{
-		image.Pt(0, outputSize.Y-1),
-		image.Pt(0, 0),
-		image.Pt(outputSize.X-1, 0),
-		image.Pt(outputSize.X-1, outputSize.Y-1),
-	})
-
-	result := gocv.NewMat()
-	rotationMatrix := gocv.GetPerspectiveTransform(vertices, targetVertices)
-	gocv.WarpPerspective(frame, &result, rotationMatrix, outputSize)
-
-	return result
 }
