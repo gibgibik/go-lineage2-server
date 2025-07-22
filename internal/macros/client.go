@@ -22,7 +22,6 @@ type StatStr struct {
 	}
 	Party map[uint8]struct {
 		HP DefaultStat
-		MP DefaultStat
 	}
 }
 

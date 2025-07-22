@@ -15,8 +15,19 @@ import (
 	"time"
 )
 
+const (
+	yellowCheck = iota
+	redCheck
+	blueCheck
+)
+
 var (
-	statsPointers = []image.Rectangle{
+	statsPointers = map[uint8]image.Rectangle{
+		yellowCheck: {image.Point{33, 49}, image.Point{238, 49}},
+		redCheck:    {image.Point{33, 66}, image.Point{238, 66}},
+		blueCheck:   {image.Point{33, 84}, image.Point{238, 84}},
+	}
+	partyStatsHpPointers = []image.Rectangle{
 		{image.Point{33, 49}, image.Point{238, 49}},
 		{image.Point{33, 66}, image.Point{238, 66}},
 		{image.Point{33, 84}, image.Point{238, 84}},
@@ -108,75 +119,60 @@ func mainRun(hwnd uintptr) {
 			LastUpdate int64
 		}{HpPercent: round(percent, 2), LastUpdate: lastUpdate}
 
-		fillMyAndTargetStat(imgJpeg, lastUpdate)
+		for colorToCheck, point := range statsPointers {
+			percent = calculatePercent(imgJpeg, point, colorToCheck)
+			switch colorToCheck {
+			case yellowCheck:
+				if percent > 0 {
+					macros.Stat.CP = macros.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
+				}
+			case redCheck:
+				if percent > 0 {
+					macros.Stat.HP = macros.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
+				}
+			case blueCheck:
+				if percent > 0 {
+					macros.Stat.MP = macros.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
+				}
+			}
+		}
 		macros.Stat.Unlock()
+		fmt.Println(macros.Stat)
 		continue
 	}
 }
 
-func fillMyAndTargetStat(imgJpeg image.Image, lastUpdate int64) {
-	colors := map[int]struct {
-		match     int
-		not_match int
-	}{
-		0: {match: 0, not_match: 0},
-		1: {match: 0, not_match: 0},
-		2: {match: 0, not_match: 0},
-	}
-	for idx, point := range statsPointers {
-		for x := point.Min.X; x < point.Max.X; x++ {
-			r, g, b, _ := imgJpeg.At(x, point.Min.Y).RGBA()
+func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck uint8) float64 {
+	var matchCount float64
+	for x := rect.Min.X; x < rect.Max.X; x++ {
+		r, g, b, _ := imgJpeg.At(x, rect.Min.Y).RGBA()
 
-			r8 := uint8(r >> 8)
-			g8 := uint8(g >> 8)
-			b8 := uint8(b >> 8)
-			match := false
-			switch idx {
-			case 0:
-				if isYellow(r8, g8, b8, newTargetDelta) {
-					match = true
-				}
-			case 1:
-				if isRed(r8, g8, b8, newTargetDelta) {
-					match = true
-				}
-			case 2:
-				if isBlue(r8, g8, b8, newTargetDelta) {
-					match = true
-				}
+		r8 := uint8(r >> 8)
+		g8 := uint8(g >> 8)
+		b8 := uint8(b >> 8)
+		match := false
+		switch colorToCheck {
+		case yellowCheck:
+			if isYellow(r8, g8, b8, newTargetDelta) {
+				match = true
 			}
-			if match {
-				//fmt.Println("match")
-				colors[idx] = struct {
-					match     int
-					not_match int
-				}{match: colors[idx].match + 1, not_match: colors[idx].not_match}
-			} else {
-				colors[idx] = struct {
-					match     int
-					not_match int
-				}{match: colors[idx].match, not_match: colors[idx].not_match + 1}
+		case redCheck:
+			if isRed(r8, g8, b8, newTargetDelta) {
+				match = true
+			}
+		case blueCheck:
+			if isBlue(r8, g8, b8, newTargetDelta) {
+				match = true
 			}
 		}
-		percent := round(float64(colors[idx].match)/205*100, 2)
-		switch idx {
-		case 0:
-			if percent > 0 {
-				macros.Stat.CP = macros.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
-			}
-		case 1:
-			if percent > 0 {
-				macros.Stat.HP = macros.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
-			}
-		case 2:
-			if percent > 0 {
-				macros.Stat.MP = macros.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
-			}
-			//fmt.Println(float32(colors[idx].match) / 205 * 100)
-			//return
+		if match {
+			matchCount++
 		}
 	}
+
+	return round(matchCount/float64(rect.Max.X-rect.Min.X)*100, 2)
 } // Function to check if the pixel is blue based on the threshold
+
 func isBlue(r, g, b, threshold uint8) bool {
 	return b > r+threshold && b > g+threshold
 }
