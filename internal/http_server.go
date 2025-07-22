@@ -3,7 +3,6 @@ package internal
 import (
 	json2 "encoding/json"
 	"errors"
-	"fmt"
 	"github.com/LA/internal/core"
 	"log"
 	"net/http"
@@ -30,10 +29,6 @@ type StatStr struct {
 	}
 }
 
-type BoxesStruct struct {
-	Boxes [][]int `json:"boxes"`
-}
-
 var (
 	Stat     StatStr
 	StatLock sync.RWMutex
@@ -48,7 +43,7 @@ func StartHttpServer() {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	core.IniHttpClient("http://127.0.0.1:/2224") //@todo config
+	core.IniHttpClient("http://127.0.0.1:2224") //@todo config
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		StatLock.RLock()
 		json, err := json2.Marshal(Stat)
@@ -61,7 +56,6 @@ func StartHttpServer() {
 	})
 	http.HandleFunc("/findBounds", findBoundsHandler)
 	http.HandleFunc("/init", func(writer http.ResponseWriter, request *http.Request) {
-		fmt.Println(GetLu4Pids())
 		result := struct {
 			PidsData map[uint32]string
 		}{
@@ -71,15 +65,18 @@ func StartHttpServer() {
 		_, _ = writer.Write(js)
 	})
 	http.HandleFunc("/getForegroundWindowPid", func(writer http.ResponseWriter, request *http.Request) {
-		currentWindowPid := getForegroundWindowHwnd()
 		var body struct {
 			Pid uint32 `json:"pid"`
 		}
-		for pid, hwnd := range pidsMap {
-			if hwnd == currentWindowPid {
+		for i := 0; i < 3; i++ {
+			pid := resolveCurrentPid()
+			if pid > 0 {
 				body.Pid = pid
+				break
 			}
+			time.Sleep(time.Millisecond * 50)
 		}
+
 		buf, _ := json2.Marshal(body)
 		writer.Write(buf)
 	})
@@ -92,6 +89,16 @@ func StartHttpServer() {
 			return
 		}
 	}()
+}
+
+func resolveCurrentPid() uint32 {
+	currentWindowPid := getForegroundWindowHwnd()
+	for pid, hwnd := range pidsMap {
+		if hwnd == currentWindowPid {
+			return pid
+		}
+	}
+	return 0
 }
 
 func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {

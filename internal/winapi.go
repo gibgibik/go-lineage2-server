@@ -325,7 +325,7 @@ func GetLu4Pids() map[uint32]string {
 	})
 
 	enumWindows(cb, 0)
-	fmt.Println("pids filled")
+	//fmt.Println("pids filled")
 	return result
 }
 
