@@ -15,7 +15,7 @@ var HttpCl *HttpClient
 
 type HttpClient struct {
 	Client  *http.Client
-	baseUrl string
+	BaseUrl string
 }
 
 type BoxesStruct struct {
@@ -26,9 +26,9 @@ func (cl *HttpClient) Post(path string, body []byte) (*BoxesStruct, error) {
 	const maxRetries = 10
 	//var resp *http.Response
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		fmt.Println("start", time.Now().UTC())
-		resp, err := cl.Client.Post(cl.baseUrl+path, "application/json", bytes.NewBuffer(body))
-		fmt.Println("end", time.Now().UTC())
+		//fmt.Println("start", time.Now().UTC())
+		resp, err := cl.Client.Post(cl.BaseUrl+path, "application/json", bytes.NewBuffer(body))
+		//fmt.Println("end", time.Now().UTC())
 		if err == nil && resp.StatusCode == http.StatusOK {
 			defer resp.Body.Close()
 			res, err := io.ReadAll(resp.Body)
@@ -62,7 +62,7 @@ func (cl *HttpClient) Post(path string, body []byte) (*BoxesStruct, error) {
 
 func IniHttpClient(baseUrl string) {
 	HttpCl = &HttpClient{
-		baseUrl: baseUrl,
+		BaseUrl: baseUrl,
 		Client: &http.Client{
 			Timeout: 10 * time.Second,
 			Transport: &http.Transport{

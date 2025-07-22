@@ -3,57 +3,38 @@ package internal
 import (
 	json2 "encoding/json"
 	"errors"
-	"github.com/LA/internal/core"
+	"github.com/gibgibik/go-lineage2-server/internal/config"
+	"github.com/gibgibik/go-lineage2-server/internal/core"
+	"github.com/gibgibik/go-lineage2-server/internal/macros"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 )
 
-type StatStr struct {
-	CP struct {
-		Percent    float64
-		LastUpdate int64
-	}
-	HP struct {
-		Percent    float64
-		LastUpdate int64
-	}
-	MP struct {
-		Percent    float64
-		LastUpdate int64
-	}
-	Target struct {
-		HpPercent  float64
-		LastUpdate int64
-	}
-}
-
 var (
-	Stat     StatStr
-	StatLock sync.RWMutex
-	ocrCl    *ocrClient
-	pidsMap  map[uint32]uintptr
+	ocrCl   *ocrClient
+	pidsMap map[uint32]uintptr
 )
 
-func StartHttpServer() {
+func StartHttpServer(cnf *config.Config) {
 	ocrCl = newOcrClient()
 	handle := &http.Server{
-		Addr:         ":2223",
+		Addr:         cnf.Web.Port,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	core.IniHttpClient("http://127.0.0.1:2224") //@todo config
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		StatLock.RLock()
-		json, err := json2.Marshal(Stat)
-		if err != nil {
-			createRequestError(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		writer.Write(json)
-		defer StatLock.RUnlock()
-	})
+	core.IniHttpClient(cnf.CudaBaseUrl)
+	macros.IniHttpClient(cnf.MacrosBaseUrl)
+	//http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	//	StatLock.RLock()
+	//	json, err := json2.Marshal(Stat)
+	//	if err != nil {
+	//		createRequestError(writer, err.Error(), http.StatusInternalServerError)
+	//		return
+	//	}
+	//	writer.Write(json)
+	//	defer StatLock.RUnlock()
+	//})
 	http.HandleFunc("/findBounds", findBoundsHandler)
 	http.HandleFunc("/init", func(writer http.ResponseWriter, request *http.Request) {
 		result := struct {

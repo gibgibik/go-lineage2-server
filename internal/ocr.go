@@ -2,7 +2,7 @@ package internal
 
 import (
 	"errors"
-	"github.com/LA/internal/core"
+	"github.com/gibgibik/go-lineage2-server/internal/core"
 	"sync"
 )
 
