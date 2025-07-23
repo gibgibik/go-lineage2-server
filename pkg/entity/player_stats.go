@@ -9,8 +9,10 @@ type PlayerStat struct {
 	HP     DefaultStat
 	MP     DefaultStat
 	Target struct {
-		HpPercent  float64
-		LastUpdate int64
+		HpPercent            float64
+		LastUpdate           int64
+		HpWasPresentAt       int64
+		FullHpUnchangedSince int64
 	}
 }
 type StatStr struct {

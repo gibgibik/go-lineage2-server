@@ -55,8 +55,8 @@ var (
 		{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 472}, image.Point{207, 472}}},
 		{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 526}, image.Point{207, 526}}},
 	}
-	newTargetDelta = uint8(20)
-	partySize      uint8
+	newTargetDelta             = uint8(20)
+	fullTargetHpUnchangedSince time.Time
 )
 
 // 6, 146, 25, 151
@@ -128,42 +128,50 @@ func mainRun(hwnd uintptr) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		//pieces := strings.Split(text, "\n")
-		targetRect := image.Rect(787, 0, 1133, 28)
-		targetImg := imgJpeg.(interface {
-			SubImage(r image.Rectangle) image.Image
-		}).SubImage(targetRect)
-		targetBounds := targetImg.Bounds()
-		targetDelta := uint8(5)
-		targetR, targetG, targetB := uint8(254), uint8(0), uint8(0)
-		var targetResultRes int
-		for x := targetBounds.Min.X; x < targetBounds.Max.X; x++ {
-			r, g, b, _ := targetImg.At(x, 1).RGBA()
-			r8 := uint8(r >> 8)
-			g8 := uint8(g >> 8)
-			b8 := uint8(b >> 8)
-
-			if withinDelta(r8, targetR, targetDelta) &&
-				withinDelta(g8, targetG, targetDelta) &&
-				withinDelta(b8, targetB, targetDelta) {
-				targetResultRes = targetResultRes + 1
-
-			}
-			//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
-		}
-		percent := float64(targetResultRes) / (float64(targetBounds.Max.X-targetBounds.Min.X) / float64(100))
-		if math.IsNaN(percent) {
-			percent = -1
-		}
 		currentPid := internal.ResolveCurrentPid()
 		lastUpdate := time.Now().UnixMilli()
 		if currentPid > 0 {
-			var playerStat entity.PlayerStat
-			playerStat.Target = struct {
-				HpPercent  float64
-				LastUpdate int64
-			}{HpPercent: round(percent, 2), LastUpdate: lastUpdate}
+			//pieces := strings.Split(text, "\n")
+			targetRect := image.Rect(787, 0, 1133, 28)
+			targetImg := imgJpeg.(interface {
+				SubImage(r image.Rectangle) image.Image
+			}).SubImage(targetRect)
+			targetBounds := targetImg.Bounds()
+			targetDelta := uint8(5)
+			targetR, targetG, targetB := uint8(254), uint8(0), uint8(0)
+			var targetResultRes int
+			for x := targetBounds.Min.X; x < targetBounds.Max.X; x++ {
+				r, g, b, _ := targetImg.At(x, 1).RGBA()
+				r8 := uint8(r >> 8)
+				g8 := uint8(g >> 8)
+				b8 := uint8(b >> 8)
 
+				if withinDelta(r8, targetR, targetDelta) &&
+					withinDelta(g8, targetG, targetDelta) &&
+					withinDelta(b8, targetB, targetDelta) {
+					targetResultRes = targetResultRes + 1
+
+				}
+				//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
+			}
+			percent := round(float64(targetResultRes)/(float64(targetBounds.Max.X-targetBounds.Min.X)/float64(100)), 2)
+			if math.IsNaN(percent) {
+				percent = -1
+			}
+			playerStat := macros.Stat.Player[currentPid]
+			playerStat.Target.HpPercent = percent
+			playerStat.Target.LastUpdate = lastUpdate
+			if percent > 0 {
+				playerStat.Target.HpWasPresentAt = time.Now().UnixMilli()
+			}
+			if playerStat.Target.HpPercent >= 99 {
+				if fullTargetHpUnchangedSince.IsZero() {
+					fullTargetHpUnchangedSince = time.Now()
+				}
+			} else {
+				fullTargetHpUnchangedSince = time.Now()
+			}
+			playerStat.Target.FullHpUnchangedSince = fullTargetHpUnchangedSince.UnixMilli()
 			for _, ss := range statsPointers {
 				percent = calculatePercent(imgJpeg, ss.rect, ss.colorToCheck)
 				if math.IsNaN(percent) {
@@ -189,6 +197,7 @@ func mainRun(hwnd uintptr) {
 		party := make(map[uint8]struct {
 			HP entity.DefaultStat
 		})
+		var percent float64
 		for idx, ss := range partyStatsHpPointers {
 			partyMemberOffset := idx * 54
 			compareMask := imgJpeg.(interface {
@@ -197,7 +206,7 @@ func mainRun(hwnd uintptr) {
 			hash2, _ := goimagehash.AverageHash(compareMask)
 			distance, _ := hash2.Distance(hash1)
 			if distance > 5 {
-				continue
+				percent = -1
 			} else {
 				percent = calculatePercent(imgJpeg, ss.rect, ss.colorToCheck)
 			}
