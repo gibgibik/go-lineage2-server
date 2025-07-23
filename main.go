@@ -204,7 +204,7 @@ func mainRun(hwnd uintptr) {
 			hash2, _ := goimagehash.AverageHash(compareMask)
 			distance, _ := hash2.Distance(hash1)
 			if distance > 5 {
-				percent = -1
+				continue
 			} else {
 				percent = calculatePercent(imgJpeg, ss.rect, ss.colorToCheck)
 			}
