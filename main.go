@@ -148,7 +148,6 @@ func mainRun(hwnd uintptr) {
 				withinDelta(b8, targetB, targetDelta) {
 				targetResultRes = targetResultRes + 1
 
-				// Detected: mark with bright green
 			}
 			//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
 		}
