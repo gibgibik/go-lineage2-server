@@ -3,13 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	json2 "encoding/json"
 	"fmt"
-	"github.com/corona10/goimagehash"
-	"github.com/gibgibik/go-lineage2-server/internal"
-	"github.com/gibgibik/go-lineage2-server/internal/config"
-	"github.com/gibgibik/go-lineage2-server/internal/macros"
-	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"image"
 	"image/jpeg"
 	"log"
@@ -17,6 +11,12 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	json2 "encoding/json"
+	"github.com/corona10/goimagehash"
+	"github.com/gibgibik/go-lineage2-server/internal"
+	"github.com/gibgibik/go-lineage2-server/internal/config"
+	"github.com/gibgibik/go-lineage2-server/internal/macros"
+	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 )
 
 const (

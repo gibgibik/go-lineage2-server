@@ -15,7 +15,7 @@ var (
 
 func IniHttpClient(baseUrl string) {
 	Stat.Player = make(map[uint32]entity.PlayerStat)
-	Stat.Party = make(map[uint8]struct{ HP entity.DefaultStat })
+	Stat.Party = make(map[uint8]entity.PartyMember)
 	HttpCl = &core.HttpClient{
 		BaseUrl: baseUrl,
 		Client: &http.Client{
