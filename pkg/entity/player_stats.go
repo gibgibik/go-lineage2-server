@@ -15,9 +15,10 @@ type PlayerStat struct {
 		FullHpUnchangedSince int64
 	}
 }
+type PartyMember struct {
+	HP DefaultStat
+}
 type StatStr struct {
 	Player map[uint32]PlayerStat
-	Party  map[uint8]struct {
-		HP DefaultStat
-	}
+	Party  map[uint8]PartyMember
 }
