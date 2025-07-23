@@ -294,7 +294,7 @@ func GetPidData() map[uint32]string {
 
 func GetLu4Pids() map[uint32]string {
 	var result = make(map[uint32]string, 0)
-	pidsMap = make(map[uint32]uintptr)
+	PidsMap = make(map[uint32]uintptr)
 	cb := syscall.NewCallback(func(hwnd uintptr, lParam uintptr) uintptr {
 		//fmt.Println("tick", hwnd)
 		if !isWindowVisible(hwnd) {
@@ -318,7 +318,7 @@ func GetLu4Pids() map[uint32]string {
 		if syscall.UTF16ToString(clsBuf) == "UnrealWindow" {
 			//fmt.Println(pid, hwnd)
 			result[pid] = "LU4"
-			pidsMap[pid] = hwnd
+			PidsMap[pid] = hwnd
 		}
 		//}
 		return 1 // continue

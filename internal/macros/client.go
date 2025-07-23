@@ -2,38 +2,20 @@ package macros
 
 import (
 	"github.com/gibgibik/go-lineage2-server/internal/core"
+	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
 
-type DefaultStat struct {
-	Percent    float64
-	LastUpdate int64
-}
-type StatStr struct {
-	CP     DefaultStat
-	HP     DefaultStat
-	MP     DefaultStat
-	Target struct {
-		HpPercent  float64
-		LastUpdate int64
-	}
-	Party map[uint8]struct {
-		HP DefaultStat
-	}
-}
-
 var (
 	HttpCl *core.HttpClient
-	Stat   struct {
-		sync.Mutex
-		StatStr
-	}
+	Stat   entity.StatStr
 )
 
 func IniHttpClient(baseUrl string) {
+	Stat.Player = make(map[uint32]entity.PlayerStat)
+	Stat.Party = make(map[uint8]struct{ HP entity.DefaultStat })
 	HttpCl = &core.HttpClient{
 		BaseUrl: baseUrl,
 		Client: &http.Client{

@@ -13,7 +13,7 @@ import (
 
 var (
 	ocrCl   *ocrClient
-	pidsMap map[uint32]uintptr
+	PidsMap map[uint32]uintptr
 )
 
 func StartHttpServer(cnf *config.Config) {
@@ -50,7 +50,7 @@ func StartHttpServer(cnf *config.Config) {
 			Pid uint32 `json:"pid"`
 		}
 		for i := 0; i < 3; i++ {
-			pid := resolveCurrentPid()
+			pid := ResolveCurrentPid()
 			if pid > 0 {
 				body.Pid = pid
 				break
@@ -72,9 +72,9 @@ func StartHttpServer(cnf *config.Config) {
 	}()
 }
 
-func resolveCurrentPid() uint32 {
+func ResolveCurrentPid() uint32 {
 	currentWindowPid := getForegroundWindowHwnd()
-	for pid, hwnd := range pidsMap {
+	for pid, hwnd := range PidsMap {
 		if hwnd == currentWindowPid {
 			return pid
 		}

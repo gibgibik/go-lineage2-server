@@ -1,4 +1,4 @@
 web:
   port: ":2223"
-macros_base_url: "http://192.168.1.60:2223/"
+macros_base_url: "http://192.168.1.53:8088/"
 cuda_base_url: "http://127.0.0.1:2224/"
