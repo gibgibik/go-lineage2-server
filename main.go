@@ -194,9 +194,7 @@ func mainRun(hwnd uintptr) {
 			}
 			macros.Stat.Player[currentPid] = playerStat
 		}
-		party := make(map[uint8]struct {
-			HP entity.DefaultStat
-		})
+		party := make(map[uint8]entity.PartyMember)
 		var percent float64
 		for idx, ss := range partyStatsHpPointers {
 			partyMemberOffset := idx * 54
