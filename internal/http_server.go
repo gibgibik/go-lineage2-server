@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	ocrCl   *ocrClient
-	PidsMap map[uint32]uintptr
+	ocrCl    *ocrClient
+	PidsMap  map[uint32]uintptr
+	writeMut sync.Mutex
 )
 
 func StartHttpServer(cnf *config.Config) {
@@ -43,6 +44,7 @@ func StartHttpServer(cnf *config.Config) {
 	//	defer StatLock.RUnlock()
 	//})
 	http.HandleFunc("/findBounds", findBoundsHandler)
+	http.HandleFunc("/getCurrentTarget", getCurrentTarget)
 	http.HandleFunc("/findBoundsTest", findBoundsHandlerTest)
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		CurrentImg.Lock()
@@ -110,36 +112,55 @@ func ResolveCurrentPid() uint32 {
 	return 0
 }
 
+func getCurrentTarget(writer http.ResponseWriter, request *http.Request) {
+	var parsed struct {
+		Name string
+	}
+	name, err := ocrCl.findTargetName()
+	if err != nil {
+		return
+	}
+	err = json2.Unmarshal(name, &parsed)
+	if err != nil {
+		return
+	}
+	parsed.Name = strings.Trim(parsed.Name, "\n")
+	buf, err := json2.Marshal(parsed)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	writer.Write(buf)
+}
+
 func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := context.Background()
 	g, ctx := errgroup.WithContext(ctx)
-	var writeMut sync.Mutex
 	var result struct {
-		TargetName string  `json:"target_name" :"target_name"`
-		Boxes      [][]int `:"boxes"`
+		Boxes [][]int `:"boxes"`
 	}
-	g.Go(func() error {
-		start := time.Now()
-
-		var parsed struct {
-			Name string
-		}
-		name, err := ocrCl.findTargetName()
-		if err != nil {
-			return err
-		}
-		err = json2.Unmarshal(name, &parsed)
-		if err != nil {
-			return err
-		}
-		writeMut.Lock()
-		defer writeMut.Unlock()
-		result.TargetName = strings.Trim(parsed.Name, "\n")
-		elapsed := time.Since(start)
-		fmt.Printf("Execution name took %s\n", elapsed)
-
-		return nil
-	})
+	//g.Go(func() error {
+	//	start := time.Now()
+	//
+	//	var parsed struct {
+	//		Name string
+	//	}
+	//	name, err := ocrCl.findTargetName()
+	//	if err != nil {
+	//		return err
+	//	}
+	//	err = json2.Unmarshal(name, &parsed)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	writeMut.Lock()
+	//	defer writeMut.Unlock()
+	//	result.TargetName = strings.Trim(parsed.Name, "\n")
+	//	elapsed := time.Since(start)
+	//	fmt.Printf("Execution name took %s\n", elapsed)
+	//
+	//	return nil
+	//})
 	g.Go(func() error {
 		start := time.Now()
 		bounds, err := ocrCl.findBounds()
