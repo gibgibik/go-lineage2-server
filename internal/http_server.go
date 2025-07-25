@@ -2,15 +2,19 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	json2 "encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gibgibik/go-lineage2-server/internal/config"
 	"github.com/gibgibik/go-lineage2-server/internal/core"
 	"github.com/gibgibik/go-lineage2-server/internal/macros"
+	"golang.org/x/sync/errgroup"
 	"io"
 	"log"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,6 +43,7 @@ func StartHttpServer(cnf *config.Config) {
 	//	defer StatLock.RUnlock()
 	//})
 	http.HandleFunc("/findBounds", findBoundsHandler)
+	http.HandleFunc("/findBoundsTest", findBoundsHandlerTest)
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		CurrentImg.Lock()
 		defer CurrentImg.Unlock()
@@ -106,13 +111,119 @@ func ResolveCurrentPid() uint32 {
 }
 
 func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {
-	boxes, err := ocrCl.findBounds()
+	ctx := context.Background()
+	g, ctx := errgroup.WithContext(ctx)
+	var writeMut sync.Mutex
+	var result struct {
+		TargetName string  `json:"target_name" :"target_name"`
+		Boxes      [][]int `:"boxes"`
+	}
+	g.Go(func() error {
+		start := time.Now()
+
+		var parsed struct {
+			Name string
+		}
+		name, err := ocrCl.findTargetName()
+		if err != nil {
+			return err
+		}
+		err = json2.Unmarshal(name, &parsed)
+		if err != nil {
+			return err
+		}
+		writeMut.Lock()
+		defer writeMut.Unlock()
+		result.TargetName = strings.Trim(parsed.Name, "\n")
+		elapsed := time.Since(start)
+		fmt.Printf("Execution name took %s\n", elapsed)
+
+		return nil
+	})
+	g.Go(func() error {
+		start := time.Now()
+		bounds, err := ocrCl.findBounds()
+		elapsed := time.Since(start)
+
+		fmt.Printf("Execution bounds took %s\n", elapsed)
+
+		if err != nil {
+			return err
+		}
+		writeMut.Lock()
+		defer writeMut.Unlock()
+		result.Boxes = bounds.Boxes
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		createRequestError(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res, err := json2.Marshal(result)
 	if err != nil {
 		createRequestError(writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	b, _ := json2.Marshal(boxes)
-	writer.Write(b)
+	writer.Write(res)
+	return
+}
+
+func findBoundsHandlerTest(writer http.ResponseWriter, request *http.Request) {
+	ctx := context.Background()
+	g, ctx := errgroup.WithContext(ctx)
+	var writeMut sync.Mutex
+	var result struct {
+		TargetName string  `json:"target_name" :"target_name"`
+		Boxes      [][]int `:"boxes"`
+	}
+	g.Go(func() error {
+		start := time.Now()
+
+		var parsed struct {
+			Name string
+		}
+		name, err := ocrCl.findTargetName()
+		if err != nil {
+			return err
+		}
+		err = json2.Unmarshal(name, &parsed)
+		if err != nil {
+			return err
+		}
+		writeMut.Lock()
+		defer writeMut.Unlock()
+		result.TargetName = strings.Trim(parsed.Name, "\n")
+		elapsed := time.Since(start)
+		fmt.Printf("Execution name took %s\n", elapsed)
+
+		return nil
+	})
+	g.Go(func() error {
+		start := time.Now()
+		bounds, err := ocrCl.findBounds()
+		elapsed := time.Since(start)
+
+		fmt.Printf("Execution bounds took %s\n", elapsed)
+
+		if err != nil {
+			return err
+		}
+		writeMut.Lock()
+		defer writeMut.Unlock()
+		result.Boxes = bounds.Boxes
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		createRequestError(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res, err := json2.Marshal(result)
+	if err != nil {
+		createRequestError(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writer.Write(res)
+	return
 }
 
 func createRequestError(w http.ResponseWriter, err string, code int) {

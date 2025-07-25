@@ -2,9 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -22,42 +19,17 @@ type BoxesStruct struct {
 	Boxes [][]int `json:"boxes"`
 }
 
-func (cl *HttpClient) Post(path string, body []byte) (*BoxesStruct, error) {
-	const maxRetries = 10
-	//var resp *http.Response
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		//fmt.Println("start", time.Now().UTC())
-		resp, err := cl.Client.Post(cl.BaseUrl+path, "application/json", bytes.NewBuffer(body))
-		//fmt.Println("end", time.Now().UTC())
-		if err == nil && resp.StatusCode == http.StatusOK {
-			defer resp.Body.Close()
-			res, err := io.ReadAll(resp.Body)
-			if err != nil {
-				fmt.Println("read error", err)
-			} else {
-				//fmt.Println(string(res))
-			}
-			result := &BoxesStruct{
-				Boxes: make([][]int, 0),
-			}
-			if err := json.Unmarshal(res, &result); err != nil {
-				fmt.Println("JSON decode error:", err)
-				return nil, err
-			}
-			return result, nil
-		}
-
-		// Log error and retry
-		if err != nil {
-			fmt.Printf("Attempt %d: Request failed: %v\n", attempt, err)
-		} else {
-			fmt.Printf("Attempt %d: Unexpected status: %s\n", attempt, resp.Status)
-			resp.Body.Close()
-		}
-
-		time.Sleep(time.Second / 2)
+func (cl *HttpClient) Post(path string, body []byte) ([]byte, error) {
+	resp, err := cl.Client.Post(cl.BaseUrl+path, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("no data")
+	defer resp.Body.Close()
+	res, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func IniHttpClient(baseUrl string) {

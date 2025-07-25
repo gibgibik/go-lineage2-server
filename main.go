@@ -3,7 +3,13 @@ package main
 import (
 	"bufio"
 	"bytes"
+	json2 "encoding/json"
 	"fmt"
+	"github.com/corona10/goimagehash"
+	"github.com/gibgibik/go-lineage2-server/internal"
+	"github.com/gibgibik/go-lineage2-server/internal/config"
+	"github.com/gibgibik/go-lineage2-server/internal/macros"
+	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"image"
 	"image/jpeg"
 	"log"
@@ -11,12 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"time"
-	json2 "encoding/json"
-	"github.com/corona10/goimagehash"
-	"github.com/gibgibik/go-lineage2-server/internal"
-	"github.com/gibgibik/go-lineage2-server/internal/config"
-	"github.com/gibgibik/go-lineage2-server/internal/macros"
-	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 )
 
 const (
@@ -111,7 +111,7 @@ func mainRun(hwnd uintptr) {
 	}
 	fmt.Println(internal.PidsMap)
 	for {
-		start := time.Now()
+		//start := time.Now()
 		frame, err := readNextJPEGFrame(reader)
 		internal.CurrentImg.Lock()
 		internal.CurrentImg.ImageJpeg = frame
@@ -217,8 +217,8 @@ func mainRun(hwnd uintptr) {
 			fmt.Println(macros.Stat)
 			panic(err)
 		}
-		elapsed := time.Since(start)
-		fmt.Printf("Execution took %s\n", elapsed)
+		//elapsed := time.Since(start)
+		//fmt.Printf("Execution took %s\n", elapsed)
 		_, err = macros.HttpCl.Client.Post(macros.HttpCl.BaseUrl+"api/stats", "application/json", bytes.NewBuffer(buf))
 		if err != nil {
 			fmt.Println("Write stats error:", err)
