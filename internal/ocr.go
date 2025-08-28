@@ -1,12 +1,10 @@
 package internal
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gibgibik/go-lineage2-server/internal/core"
-	"io"
 	"sync"
 )
 
@@ -64,31 +62,11 @@ func (cl *ocrClient) findTargetName() ([]byte, error) {
 	cpImg := make([]byte, len(CurrentImg.ImageJpeg))
 	copy(cpImg, CurrentImg.ImageJpeg)
 	CurrentImg.Unlock()
-	var imgB bytes.Buffer
+	//var imgB bytes.Buffer
 	//jpeg.Encode(&imgB, cpImg, &jpeg.Options{Quality: 100})
 	//if err != nil {
 	//	return nil, err
 	//}
 
-	return core.HttpCl.Post("findTargetName", imgB.Bytes())
-}
-
-func (cl *ocrClient) findBoundsTest() ([]byte, error) {
-	CurrentImg.Lock()
-	if len(CurrentImg.ImageJpeg) == 0 {
-		return nil, errors.New("image not found")
-	}
-	cpImg := make([]byte, len(CurrentImg.ImageJpeg))
-	copy(cpImg, CurrentImg.ImageJpeg)
-	CurrentImg.Unlock()
-
-	resp, err := core.HttpCl.Client.Post("http://192.168.1.60:2224/test", "", bytes.NewBuffer(cpImg))
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	defer resp.Body.Close()
-	res, err := io.ReadAll(resp.Body)
-	fmt.Println(len(res))
-	return res, err
+	return core.HttpCl.Post("findTargetName", cpImg)
 }
