@@ -2,3 +2,28 @@ web:
   port: ":2223"
 macros_base_url: "http://192.168.1.73:8088/"
 cuda_base_url: "http://127.0.0.1:2224/"
+client_config:
+  lu4:
+    exclude_bounds:
+      - [ 0, 0, 247, 110 ]
+      - [ 0, 590, 370, 1074 ]
+      - [ 697, 915, 1273, 1074 ]
+      - [ 1710, -50, 1920, 23 ]
+      - [ 1644, 0, 1748, 35 ]
+      - [ 775, 390, 1235, 811 ]
+      - [ 273, 6, 561, 52 ]
+      - [ 1849, 1061, 1888, 1076 ]
+      - [ 787, 2, 1135, 29 ]
+    npc_threshold: 0.9995
+    npc_nms: 0.4
+    target_rect: [787, 0, 1133, 28]
+    player_rects:
+      - [33, 49, 238, 49]
+      - [33, 66, 238, 66]
+      - [33, 84, 238, 84]
+  mw:
+    exclude_bounds: [ ]
+    npc_threshold: 0.9995
+    npc_nms: 0.4
+    target_rect: []
+    player_rects: []

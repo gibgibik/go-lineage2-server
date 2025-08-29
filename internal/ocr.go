@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gibgibik/go-lineage2-server/internal/config"
 	"github.com/gibgibik/go-lineage2-server/internal/core"
 	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"image"
@@ -18,10 +19,16 @@ var (
 )
 
 type ocrClient struct {
+	excludeBounds []image.Rectangle
+	cnf           config.Client
 }
 
-func newOcrClient() *ocrClient {
-	return &ocrClient{}
+func newOcrClient(cnf config.Client) *ocrClient {
+	var excludeBounds = make([]image.Rectangle, 0)
+	for _, v := range cnf.ExcludeBounds {
+		excludeBounds = append(excludeBounds, image.Rectangle{image.Point{v[0], v[1]}, image.Point{v[2], v[3]}})
+	}
+	return &ocrClient{excludeBounds: excludeBounds, cnf: cnf}
 }
 
 func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
@@ -34,19 +41,9 @@ func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
 	CurrentImg.Unlock()
 
 	res, err := core.HttpCl.FindBounds(entity.GetBoundsConfig{
-		ExcludeBounds: []image.Rectangle{
-			image.Rect(0, 0, 247, 110),         // ex player stat
-			image.Rect(0, 590, 370, 1074),      // chat
-			image.Rect(697, 915, 1273, 1074),   // panel with skills
-			image.Rect(1710, -50, 1920, 233),   // map
-			image.Rect(1644, 0, 1748, 35),      // money
-			image.Rect(775, 390, 1235, 811),    // me
-			image.Rect(273, 6, 561, 52),        // buffs
-			image.Rect(1849, 1061, 1888, 1076), // time
-			image.Rect(787, 2, 1135, 29),       // target name
-		},
-		NpcThreshold: 0.9995,
-		NpcNms:       0.4,
+		ExcludeBounds: cl.excludeBounds,
+		NpcThreshold:  cl.cnf.NpcThreshold,
+		NpcNms:        cl.cnf.NpcNmc,
 	}, cpImg)
 	boxes := &core.BoxesStruct{
 		Boxes: make([][]int, 0),

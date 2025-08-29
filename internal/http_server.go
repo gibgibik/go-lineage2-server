@@ -25,7 +25,7 @@ var (
 )
 
 func StartHttpServer(cnf *config.Config) {
-	ocrCl = newOcrClient()
+	ocrCl = newOcrClient(cnf.ClientConfig)
 	handle := &http.Server{
 		Addr:         cnf.Web.Port,
 		ReadTimeout:  10 * time.Second,
