@@ -57,7 +57,7 @@ var (
 	//	{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 472}, image.Point{207, 472}}},
 	//	{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 526}, image.Point{207, 526}}},
 	//}
-	newTargetDelta             = uint8(20)
+	newTargetDelta             = uint8(30)
 	fullTargetHpUnchangedSince time.Time
 	configName                 string
 )
@@ -115,13 +115,13 @@ func mainRun(hwnd uintptr) {
 	//}
 	//hash1, _ := goimagehash.AverageHash(mask)
 	for i := 0; i < 3; i++ {
-		internal.GetLu4Pids()
+		internal.GetPids()
 		if len(internal.PidsMap) > 0 {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	fmt.Println(internal.PidsMap)
+	//fmt.Println(internal.PidsMap)
 	for {
 		//start := time.Now()
 		frame, err := readNextJPEGFrame(reader)
@@ -142,15 +142,16 @@ func mainRun(hwnd uintptr) {
 		}
 		currentPid := internal.ResolveCurrentPid()
 		lastUpdate := time.Now().UnixMilli()
-		if currentPid > 0 {
-			//pieces := strings.Split(text, "\n")
-			percent, playerStat := handleTargetState(imgJpeg, currentPid, lastUpdate)
-			handlePlayerState(percent, imgJpeg, playerStat, lastUpdate, currentPid)
-		}
+		//fmt.Println(currentPid)
+		//if currentPid > 0 {
+		//pieces := strings.Split(text, "\n")
+		percent, playerStat := handleTargetState(imgJpeg, currentPid, lastUpdate)
+		handlePlayerState(percent, imgJpeg, playerStat, lastUpdate, currentPid)
+		//}
 		//handlePartyState(imgJpeg, hash1, lastUpdate) //@todo enable later?
 		buf, err := json2.Marshal(macros.Stat)
 		if err != nil {
-			fmt.Println(macros.Stat)
+			//fmt.Println(macros.Stat)
 			panic(err)
 		}
 		//elapsed := time.Since(start)
@@ -185,6 +186,7 @@ func mainRun(hwnd uintptr) {
 //}
 
 func handlePlayerState(percent float64, imgJpeg image.Image, playerStat entity.PlayerStat, lastUpdate int64, currentPid uint32) {
+	//fmt.Println(statsPointers)
 	for _, ss := range statsPointers {
 		percent = calculatePercent(imgJpeg, ss.rect, ss.colorToCheck)
 		if math.IsNaN(percent) {
@@ -193,44 +195,50 @@ func handlePlayerState(percent float64, imgJpeg image.Image, playerStat entity.P
 		switch ss.colorToCheck {
 		case yellowCheck:
 			if percent > 0 {
+				//fmt.Print("cp ", percent)
 				playerStat.CP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		case redCheck:
 			if percent > 0 {
+				//fmt.Print("hp ", percent)
 				playerStat.HP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		case blueCheck:
 			if percent > 0 {
+				//fmt.Print("mp ", percent)
+
 				playerStat.MP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		}
+		//fmt.Println("")
 	}
 	macros.Stat.Player[currentPid] = playerStat
 }
 
 func handleTargetState(imgJpeg image.Image, currentPid uint32, lastUpdate int64) (float64, entity.PlayerStat) {
-	targetImg := imgJpeg.(interface {
-		SubImage(r image.Rectangle) image.Image
-	}).SubImage(targetRect)
-	targetBounds := targetImg.Bounds()
-	targetDelta := uint8(5)
-	targetR, targetG, targetB := uint8(254), uint8(0), uint8(0)
+	targetDelta := uint8(20)
+	targetR, targetG, targetB := uint8(108), uint8(23), uint8(13)
+	//internal.ClearOverlay(internal.Hwnd)
+	//internal.Draw(internal.Hwnd, uintptr(targetRect.Min.X), uintptr(targetRect.Min.Y), uintptr(targetRect.Max.X), uintptr(targetRect.Max.Y+2), "")
 	var targetResultRes int
-	for x := targetBounds.Min.X; x < targetBounds.Max.X; x++ {
-		r, g, b, _ := targetImg.At(x, 1).RGBA()
+	var maxX = 0
+	for x := targetRect.Max.X; x >= targetRect.Min.X; x-- {
+		r, g, b, _ := imgJpeg.At(x, targetRect.Min.Y).RGBA()
 		r8 := uint8(r >> 8)
 		g8 := uint8(g >> 8)
 		b8 := uint8(b >> 8)
-
 		if withinDelta(r8, targetR, targetDelta) &&
 			withinDelta(g8, targetG, targetDelta) &&
 			withinDelta(b8, targetB, targetDelta) {
 			targetResultRes = targetResultRes + 1
-
+		}
+		if targetResultRes >= 3 {
+			maxX = x - targetRect.Min.X
+			break
 		}
 		//gray := uint8((uint16(r8) + uint16(g8) + uint16(b8)) / 3)
 	}
-	percent := round(float64(targetResultRes)/(float64(targetBounds.Max.X-targetBounds.Min.X)/float64(100)), 2)
+	percent := round(float64(maxX)/(float64(targetRect.Max.X-targetRect.Min.X)/float64(100)), 2)
 	if math.IsNaN(percent) {
 		percent = -1
 	}
@@ -253,29 +261,27 @@ func handleTargetState(imgJpeg image.Image, currentPid uint32, lastUpdate int64)
 
 func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck uint8) float64 {
 	var matchCount float64
+	targetDelta := uint8(130)
+	var targetR, targetG, targetB uint8
+	switch colorToCheck {
+	case yellowCheck:
+		targetR, targetG, targetB = uint8(134), uint8(92), uint8(8)
+	case redCheck:
+		targetR, targetG, targetB = uint8(122), uint8(29), uint8(21)
+	case blueCheck:
+		targetR, targetG, targetB = uint8(6), uint8(60), uint8(144)
+	}
 	for x := rect.Min.X; x < rect.Max.X; x++ {
 		r, g, b, _ := imgJpeg.At(x, rect.Min.Y).RGBA()
-
 		r8 := uint8(r >> 8)
 		g8 := uint8(g >> 8)
 		b8 := uint8(b >> 8)
-		match := false
-		switch colorToCheck {
-		case yellowCheck:
-			if isYellow(r8, g8, b8, newTargetDelta) {
-				match = true
-			}
-		case redCheck:
-			if isRed(r8, g8, b8, newTargetDelta) {
-				match = true
-			}
-		case blueCheck:
-			if isBlue(r8, g8, b8, newTargetDelta) {
-				match = true
-			}
-		}
-		if match {
+
+		if withinDelta(r8, targetR, targetDelta) &&
+			withinDelta(g8, targetG, targetDelta) &&
+			withinDelta(b8, targetB, targetDelta) {
 			matchCount++
+
 		}
 	}
 	return round(matchCount/float64(rect.Max.X-rect.Min.X)*100, 2)

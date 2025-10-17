@@ -56,7 +56,6 @@ func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
 		return boxes, err
 	}
 	ClearOverlay(Hwnd)
-	fmt.Println(boxes)
 	for _, v := range boxes.Boxes {
 		Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
 	}

@@ -27,12 +27,12 @@ var (
 func StartHttpServer(cnf *config.Config) {
 	ocrCl = newOcrClient(cnf.ClientConfig)
 	handle := &http.Server{
-		Addr:         cnf.Web.Port,
+		Addr:         cnf.ClientConfig.Web.Port,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 	core.IniHttpClient(cnf.CudaBaseUrl)
-	macros.IniHttpClient(cnf.MacrosBaseUrl)
+	macros.IniHttpClient(cnf.ClientConfig.MacrosBaseUrl)
 	//http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 	//	StatLock.RLock()
 	//	json, err := json2.Marshal(Stat)
@@ -69,7 +69,7 @@ func StartHttpServer(cnf *config.Config) {
 		result := struct {
 			PidsData map[uint32]string
 		}{
-			PidsData: GetLu4Pids(),
+			PidsData: GetPids(),
 		}
 		js, _ := json2.Marshal(result)
 		_, _ = writer.Write(js)

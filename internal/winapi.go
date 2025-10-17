@@ -229,70 +229,7 @@ func callDefWindowProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) 
 	return ret
 }
 
-func GetPidData() map[uint32]string {
-	createSnapshot := kernel32.NewProc("CreateToolhelp32Snapshot")
-	process32First := kernel32.NewProc("Process32FirstW")
-	process32Next := kernel32.NewProc("Process32NextW")
-	closeHandle := kernel32.NewProc("CloseHandle")
-
-	snapshotHandle, _, err := createSnapshot.Call(TH32CS_SNAPPROCESS, 0)
-	if snapshotHandle < 0 {
-		panic(fmt.Sprintf("CreateToolhelp32Snapshot failed: %v", err))
-	}
-	defer closeHandle.Call(snapshotHandle)
-
-	var entry PROCESSENTRY32
-	entry.Size = uint32(unsafe.Sizeof(entry))
-
-	ret, _, _ := process32First.Call(snapshotHandle, uintptr(unsafe.Pointer(&entry)))
-	if ret == 0 {
-		panic("Process32FirstW failed")
-	}
-
-	//result := make(map[int]string/
-	result := make(map[uint32]string, 0)
-	var lPid struct {
-		currentPid uint32
-		prevPid    uint32
-	}
-	var prev uint32
-	var lCount int8
-	for {
-		name := syscall.UTF16ToString(entry.ExeFile[:])
-		//fmt.Printf("PID: %d\tName: %s\newOcrClient", entry.ProcessID, name)
-
-		ret, _, _ = process32Next.Call(snapshotHandle, uintptr(unsafe.Pointer(&entry)))
-		if name == "aaerrport.exe" && lPid.currentPid == 0 { //first window, protected by antichear
-			result[entry.ProcessID] = "lu4.bin"
-			continue
-		}
-
-		//fmt.Println(entry.ProcessID, entry.ParentProcessID, name)
-		if name == "lu4.bin" {
-			if lPid.currentPid < entry.ProcessID {
-				lPid = struct {
-					currentPid uint32
-					prevPid    uint32
-				}{currentPid: entry.ProcessID, prevPid: prev}
-			}
-			lCount++
-		}
-		if ret == 0 {
-			break
-		}
-		if _, ok := result[entry.ProcessID]; !ok {
-			prev = entry.ProcessID
-		}
-	}
-
-	if lCount > 1 {
-		result[lPid.prevPid] = "lu4.bin"
-	}
-
-	return result
-}
-
-func GetLu4Pids() map[uint32]string {
+func GetPids() map[uint32]string {
 	var result = make(map[uint32]string, 0)
 	PidsMap = make(map[uint32]uintptr)
 	cb := syscall.NewCallback(func(hwnd uintptr, lParam uintptr) uintptr {
@@ -306,18 +243,20 @@ func GetLu4Pids() map[uint32]string {
 		procGetClassNameW := user32.NewProc("GetClassNameW")
 		clsBuf := make([]uint16, 256)
 		procGetClassNameW.Call(hwnd, uintptr(unsafe.Pointer(&clsBuf[0])), uintptr(len(clsBuf)))
-		//fmt.Println("ClassName:", syscall.UTF16ToString(clsBuf))
-		// int GetWindowTextW(HWND hWnd, LPWSTR lpString, int nMaxCount);
-		//title := getWindowTextSafe(hwnd)
+		fmt.Println("ClassName:", syscall.UTF16ToString(clsBuf))
+		//w := GetWindowTextW(hwnd)
+		//fmt.Println("window text:", w)
+		title := getWindowTextSafe(hwnd)
 		//fmt.Println(pid, title)
 		//if ret == 0 {
 		//	fmt.Println(err)
 		//	//return 1
 		//	//return "", fmt.Errorf("GetWindowTextW failed: %v", err)
 		//} else {
-		if syscall.UTF16ToString(clsBuf) == "UnrealWindow" {
-			//fmt.Println(pid, hwnd)
-			result[pid] = "LU4"
+		//if pid == 26228 {
+		if syscall.UTF16ToString(clsBuf) == "l2UnrealWWindowsViewportWindow" {
+			fmt.Println(pid, hwnd)
+			result[pid] = title
 			PidsMap[pid] = hwnd
 		}
 		//}
@@ -327,6 +266,12 @@ func GetLu4Pids() map[uint32]string {
 	enumWindows(cb, 0)
 	//fmt.Println("pids filled")
 	return result
+}
+
+func GetWindowTextW(hwnd uintptr) string {
+	buf := make([]uint16, 255)
+	procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	return syscall.UTF16ToString(buf)
 }
 
 func enumWindows(enumFunc uintptr, lParam uintptr) bool {
