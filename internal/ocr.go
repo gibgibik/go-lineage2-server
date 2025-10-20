@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"github.com/gibgibik/go-lineage2-server/internal/core"
 	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"image"
+	"image/jpeg"
 	"sync"
 )
 
@@ -76,11 +78,24 @@ func (cl *ocrClient) findTargetName() ([]byte, error) {
 	cpImg := make([]byte, len(CurrentImg.ImageJpeg))
 	copy(cpImg, CurrentImg.ImageJpeg)
 	CurrentImg.Unlock()
-	//var imgB bytes.Buffer
-	//jpeg.Encode(&imgB, cpImg, &jpeg.Options{Quality: 100})
+	imgJpeg, _ := jpeg.Decode(bytes.NewReader(cpImg))
+	subImg := imgJpeg.(interface {
+		SubImage(r image.Rectangle) image.Image
+	}).SubImage(image.Rectangle{
+		Min: image.Point{
+			X: config.Cnf.ClientConfig.TargetNameRect[0],
+			Y: config.Cnf.ClientConfig.TargetNameRect[1],
+		},
+		Max: image.Point{
+			X: config.Cnf.ClientConfig.TargetNameRect[2],
+			Y: config.Cnf.ClientConfig.TargetNameRect[3],
+		},
+	})
+	var imgB bytes.Buffer
+	jpeg.Encode(&imgB, subImg, &jpeg.Options{Quality: 100})
 	//if err != nil {
 	//	return nil, err
 	//}
 
-	return core.HttpCl.Post("findTargetName", cpImg)
+	return core.HttpCl.Post("findTargetName", imgB.Bytes())
 }

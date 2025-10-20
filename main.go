@@ -63,7 +63,7 @@ var (
 )
 
 func main() {
-	cnfName := flag.String("config", "lu4", "config name")
+	cnfName := flag.String("config", "mw", "config name")
 	flag.Parse()
 	err := config.InitConfig(*cnfName)
 	if err != nil {
@@ -162,7 +162,7 @@ func mainRun(hwnd uintptr) {
 //	var percent float64
 //	for idx, ss := range partyStatsHpPointers {
 //		partyMemberOffset := idx * 54
-//		compareMask := imgJpeg.(interface {
+//		compareMask := imgJpeg.(i	nterface {
 //			SubImage(r image.Rectangle) image.Image
 //		}).SubImage(image.Rect(6, 146+partyMemberOffset, 25, 151+partyMemberOffset))
 //		hash2, _ := goimagehash.AverageHash(compareMask)

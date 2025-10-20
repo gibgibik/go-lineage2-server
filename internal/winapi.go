@@ -132,7 +132,7 @@ func InitWinApi(mainRun func(hwnd uintptr)) {
 		uintptr(unsafe.Pointer(className)),
 		0,
 		WS_POPUP,
-		0, 0, config.Cnf.ClientConfig.Resolution[0], config.Cnf.ClientConfig.Resolution[1],
+		0, 0, uintptr(config.Cnf.ClientConfig.Resolution[0]), uintptr(config.Cnf.ClientConfig.Resolution[1]),
 		0, 0, hInstance, 0,
 	)
 
@@ -244,10 +244,9 @@ func GetPids() map[uint32]string {
 		procGetClassNameW := user32.NewProc("GetClassNameW")
 		clsBuf := make([]uint16, 256)
 		procGetClassNameW.Call(hwnd, uintptr(unsafe.Pointer(&clsBuf[0])), uintptr(len(clsBuf)))
-		fmt.Println("ClassName:", syscall.UTF16ToString(clsBuf))
+		//fmt.Println("ClassName:", syscall.UTF16ToString(clsBuf), " ", pid)
 		//w := GetWindowTextW(hwnd)
 		//fmt.Println("window text:", w)
-		title := getWindowTextSafe(hwnd)
 		//fmt.Println(pid, title)
 		//if ret == 0 {
 		//	fmt.Println(err)
@@ -255,7 +254,8 @@ func GetPids() map[uint32]string {
 		//	//return "", fmt.Errorf("GetWindowTextW failed: %v", err)
 		//} else {
 		//if pid == 26228 {
-		if syscall.UTF16ToString(clsBuf) == "l2UnrealWWindowsViewportWindow" {
+		if syscall.UTF16ToString(clsBuf) == "mwUnrealWWindowsViewportWindow" {
+			title := getWindowTextSafe(hwnd)
 			fmt.Println(pid, hwnd)
 			result[pid] = title
 			PidsMap[pid] = hwnd
@@ -331,6 +331,7 @@ func getWindowTextSafe(hwnd uintptr) string {
 	}
 
 	// Allocate buffer
+	length = 256
 	buf := make([]uint16, length+1)
 	ret, _, _ := procSendMessageTimeoutW.Call(
 		hwnd,
