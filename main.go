@@ -179,7 +179,6 @@ func mainRun(hwnd uintptr) {
 //}
 
 func handlePlayerState(percent float64, imgJpeg image.Image, playerStat entity.PlayerStat, lastUpdate int64, currentPid uint32) {
-	//fmt.Println(statsPointers)
 	for _, ss := range statsPointers {
 		percent = calculatePercent(imgJpeg, ss.rect, ss.colorToCheck)
 		if math.IsNaN(percent) {
@@ -203,8 +202,8 @@ func handlePlayerState(percent float64, imgJpeg image.Image, playerStat entity.P
 				playerStat.MP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		}
-		//fmt.Println("")
 	}
+	//fmt.Println("")
 	macros.Stat.Player[currentPid] = playerStat
 }
 
@@ -254,17 +253,18 @@ func handleTargetState(imgJpeg image.Image, currentPid uint32, lastUpdate int64)
 
 func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck uint8) float64 {
 	var matchCount float64
-	targetDelta := uint8(130)
+	targetDelta := uint8(20)
 	var targetR, targetG, targetB uint8
 	switch colorToCheck {
 	case yellowCheck:
-		targetR, targetG, targetB = uint8(134), uint8(92), uint8(8)
+		targetR, targetG, targetB = uint8(125), uint8(90), uint8(19)
 	case redCheck:
-		targetR, targetG, targetB = uint8(122), uint8(29), uint8(21)
+		targetR, targetG, targetB = uint8(135), uint8(30), uint8(20)
 	case blueCheck:
-		targetR, targetG, targetB = uint8(6), uint8(60), uint8(144)
+		targetR, targetG, targetB = uint8(8), uint8(68), uint8(159)
 	}
-	for x := rect.Min.X; x < rect.Max.X; x++ {
+	var maxX = 0
+	for x := rect.Max.X; x >= rect.Min.X; x-- {
 		r, g, b, _ := imgJpeg.At(x, rect.Min.Y).RGBA()
 		r8 := uint8(r >> 8)
 		g8 := uint8(g >> 8)
@@ -274,10 +274,18 @@ func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck ui
 			withinDelta(g8, targetG, targetDelta) &&
 			withinDelta(b8, targetB, targetDelta) {
 			matchCount++
-
+		}
+		if matchCount >= 3 {
+			maxX = x - rect.Min.X
+			break
 		}
 	}
-	return round(matchCount/float64(rect.Max.X-rect.Min.X)*100, 2)
+	percent := round(float64(maxX)/(float64(rect.Max.X-rect.Min.X)/float64(100)), 2)
+	if math.IsNaN(percent) {
+		percent = -1
+	}
+	return percent
+	//return round(matchCount/float64(rect.Max.X-rect.Min.X)*100, 2)
 } // Function to check if the pixel is blue based on the threshold
 
 func isBlue(r, g, b, threshold uint8) bool {

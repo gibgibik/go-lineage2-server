@@ -68,8 +68,6 @@ func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
 func (cl *ocrClient) findTargetName() ([]byte, error) {
 	//start := time.Now()
 	//img, err := screenshot.CaptureDisplay(0)
-	//elapsed := time.Since(start)
-	//fmt.Printf("Execution name took %s\n", elapsed)
 
 	CurrentImg.Lock()
 	if len(CurrentImg.ImageJpeg) == 0 {
@@ -98,4 +96,6 @@ func (cl *ocrClient) findTargetName() ([]byte, error) {
 	//}
 
 	return core.HttpCl.Post("findTargetName", imgB.Bytes())
+	//elapsed := time.Since(start)
+	//fmt.Printf("Execution name took %s\n", elapsed)
 }
