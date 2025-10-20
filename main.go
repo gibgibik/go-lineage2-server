@@ -83,14 +83,8 @@ func mainRun(hwnd uintptr) {
 	internal.StartHttpServer(config.Cnf)
 
 	cmd := exec.Command("ffmpeg",
-		"-f", "gdigrab", // screen capture
-		"-framerate", "10", // 1 кадр/сек (зменши для тесту)
-		//"-vframes", "1", // лише один кадр
-		//"-video_size", "250x105",
-		//"-video_size", "1920x1080",
-		//"-offset_x", "1",
-		//"-offset_y", "30",
-		//"-show_region", "1",
+		"-f", "gdigrab",
+		"-framerate", "10",
 		"-i", "desktop",
 		"-f", "image2pipe",
 		"-vcodec", "mjpeg", // або "png"

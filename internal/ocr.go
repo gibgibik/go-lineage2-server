@@ -44,6 +44,7 @@ func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
 		ExcludeBounds: cl.excludeBounds,
 		NpcThreshold:  cl.cnf.NpcThreshold,
 		NpcNms:        cl.cnf.NpcNmc,
+		Resolution:    cl.cnf.Resolution,
 	}, cpImg)
 	boxes := &core.BoxesStruct{
 		Boxes: make([][]int, 0),
