@@ -1,6 +1,7 @@
-cuda_base_url: "http://127.0.0.1:2224/"
 client_config:
   mw:
+    cuda_base_url: "http://127.0.0.1:2224/"
+    resolution: [1920, 1080]
     exclude_bounds: [ ]
     npc_threshold: 0.9995
     npc_nms: 0.4

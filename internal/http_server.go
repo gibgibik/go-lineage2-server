@@ -31,7 +31,7 @@ func StartHttpServer(cnf *config.Config) {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	core.IniHttpClient(cnf.CudaBaseUrl)
+	core.IniHttpClient(cnf.ClientConfig.CudaBaseUrl)
 	macros.IniHttpClient(cnf.ClientConfig.MacrosBaseUrl)
 	//http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 	//	StatLock.RLock()

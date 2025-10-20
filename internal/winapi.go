@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"github.com/gibgibik/go-lineage2-server/internal/config"
 	"sync"
 	"syscall"
 	"time"
@@ -131,7 +132,7 @@ func InitWinApi(mainRun func(hwnd uintptr)) {
 		uintptr(unsafe.Pointer(className)),
 		0,
 		WS_POPUP,
-		0, 0, 1920, 1080,
+		0, 0, config.Cnf.ClientConfig.Resolution[0], config.Cnf.ClientConfig.Resolution[1],
 		0, 0, hInstance, 0,
 	)
 

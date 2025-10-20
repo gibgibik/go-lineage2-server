@@ -62,26 +62,25 @@ var (
 	configName                 string
 )
 
-// 6, 146, 25, 151
 func main() {
+	cnfName := flag.String("config", "lu4", "config name")
+	flag.Parse()
+	err := config.InitConfig(*cnfName)
+	if err != nil {
+		panic(err)
+	}
 	internal.InitWinApi(mainRun)
 }
 
 func mainRun(hwnd uintptr) {
-	cnfName := flag.String("config", "lu4", "config name")
-	flag.Parse()
-	cnf, err := config.InitConfig(*cnfName)
-	if err != nil {
-		panic(err)
-	}
-	for idx, v := range cnf.ClientConfig.PlayerRects {
+	for idx, v := range config.Cnf.ClientConfig.PlayerRects {
 		statsPointers = append(statsPointers, pointerStruct{
 			colorToCheck: uint8(idx),
 			rect:         image.Rectangle{image.Point{v[0], v[1]}, image.Point{v[2], v[3]}},
 		})
 	}
-	targetRect = image.Rectangle{image.Point{cnf.ClientConfig.TargetRect[0], cnf.ClientConfig.TargetRect[1]}, image.Point{cnf.ClientConfig.TargetRect[2], cnf.ClientConfig.TargetRect[3]}}
-	internal.StartHttpServer(cnf)
+	targetRect = image.Rectangle{image.Point{config.Cnf.ClientConfig.TargetRect[0], config.Cnf.ClientConfig.TargetRect[1]}, image.Point{config.Cnf.ClientConfig.TargetRect[2], config.Cnf.ClientConfig.TargetRect[3]}}
+	internal.StartHttpServer(config.Cnf)
 
 	cmd := exec.Command("ffmpeg",
 		"-f", "gdigrab", // screen capture
@@ -96,7 +95,7 @@ func mainRun(hwnd uintptr) {
 		"-f", "image2pipe",
 		"-vcodec", "mjpeg", // або "png"
 		"-q:v", "1",
-		"-s", "1920x1080",
+		"-s", fmt.Sprintf("%vx%v", config.Cnf.ClientConfig.Resolution[0], config.Cnf.ClientConfig.Resolution[1]),
 		"pipe:1",
 	)
 	stdout, err := cmd.StdoutPipe()
