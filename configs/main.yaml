@@ -14,7 +14,7 @@ client_config:
       - [1208, 713, 1358, 831] #player box
     npc_threshold: 0.9995
     npc_nms: 0.4
-    target_rect: [1059, 4, 1362, 23]
+    target_rect: [1058, 28, 1373, 28]
     target_name_rect: [1058, 2, 1248, 25]
     player_rects:
       - [21, 32, 336, 32]
