@@ -16,6 +16,7 @@ type Client struct {
 	TargetRect     []int   `mapstructure:"target_rect"`
 	TargetNameRect []int   `mapstructure:"target_name_rect"`
 	PlayerRects    [][]int `mapstructure:"player_rects"`
+	PartyRects     [][]int `mapstructure:"party_rects"`
 	Web            Web
 	MacrosBaseUrl  string `mapstructure:"macros_base_url"`
 }

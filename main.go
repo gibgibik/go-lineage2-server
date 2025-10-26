@@ -33,20 +33,6 @@ type pointerStruct struct {
 var (
 	statsPointers []pointerStruct
 	targetRect    image.Rectangle
-	//statsPointers = []pointerStruct{
-	//	{
-	//		colorToCheck: yellowCheck,
-	//		rect:         image.Rectangle{image.Point{33, 49}, image.Point{238, 49}},
-	//	},
-	//	{
-	//		colorToCheck: redCheck,
-	//		rect:         image.Rectangle{image.Point{33, 66}, image.Point{238, 66}},
-	//	},
-	//	{
-	//		colorToCheck: blueCheck,
-	//		rect:         image.Rectangle{image.Point{33, 84}, image.Point{238, 84}},
-	//	},
-	//}
 	//partyStatsHpPointers = []pointerStruct{
 	//	{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 148}, image.Point{207, 148}}},
 	//	{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 202}, image.Point{207, 202}}},
@@ -57,9 +43,7 @@ var (
 	//	{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 472}, image.Point{207, 472}}},
 	//	{colorToCheck: redCheck, rect: image.Rectangle{image.Point{27, 526}, image.Point{207, 526}}},
 	//}
-	newTargetDelta             = uint8(30)
 	fullTargetHpUnchangedSince time.Time
-	configName                 string
 )
 
 func main() {
@@ -161,9 +145,9 @@ func mainRun(hwnd uintptr) {
 //func handlePartyState(imgJpeg image.Image, hash1 *goimagehash.ImageHash, lastUpdate int64) {
 //	party := make(map[uint8]entity.PartyMember)
 //	var percent float64
-//	for idx, ss := range partyStatsHpPointers {
+//	for idx, ss := range config.Cnf.ClientConfig.PartyRects {
 //		partyMemberOffset := idx * 54
-//		compareMask := imgJpeg.(i	nterface {
+//		compareMask := imgJpeg.(interface {
 //			SubImage(r image.Rectangle) image.Image
 //		}).SubImage(image.Rect(6, 146+partyMemberOffset, 25, 151+partyMemberOffset))
 //		hash2, _ := goimagehash.AverageHash(compareMask)
@@ -171,7 +155,13 @@ func mainRun(hwnd uintptr) {
 //		if distance > 5 {
 //			continue
 //		} else {
-//			percent = calculatePercent(imgJpeg, ss.rect, ss.colorToCheck)
+//			percent = calculatePercent(imgJpeg, image.Rectangle{image.Point{
+//				X: ss[0],
+//				Y: ss[1],
+//			}, image.Point{
+//				X: ss[2],
+//				Y: ss[3],
+//			}}, redCheck)
 //		}
 //		party[uint8(idx)] = struct{ HP entity.DefaultStat }{HP: entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}}
 //
