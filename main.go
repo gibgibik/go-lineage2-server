@@ -64,7 +64,7 @@ var (
 
 func main() {
 	cnfName := flag.String("config", "mw", "config name")
-	fmt.Println("start with config: ", cnfName)
+	fmt.Println("start with config: ", *cnfName)
 	flag.Parse()
 	err := config.InitConfig(*cnfName)
 	if err != nil {
