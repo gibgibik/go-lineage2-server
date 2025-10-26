@@ -27,23 +27,23 @@ client_config:
     cuda_base_url: "http://192.168.1.60:2224/"
     resolution: [1920, 1200]
     exclude_bounds:
-      - [1, 1, 173, 81] # stats
-      - [1, 654, 354, 1043] # chat
-      - [2, 1053, 1979, 1075] #bottom panel
-      - [857, 2, 1064, 50] # target
-      - [724, 784, 1283, 1051] #skill panel
-      - [1712, 3, 1918, 228] # map
+      - [1, 1, 226, 79] # stats
+      - [1, 777, 354, 1166] # chat
+      - [1, 1170, 1919, 1120] #bottom panel
+      - [788, 2, 1136, 50] # target
+      - [733, 890, 1279, 1162] #skill panel
+      - [1711, 1, 1918, 228] # map
       - [1871, 370, 1919, 788] #global panel
-      - [1590, 960, 1906, 1050] # global panel row
-      - [852, 431, 1103, 719] #player box
+      - [1590, 960, 1906, 1165] # global panel row
+      - [852, 488, 1103, 786] #player box
     npc_threshold: 0.9995
     npc_nms: 0.4
-    target_rect: [874, 28, 1056, 28]
-    target_name_rect: [870, 2, 1044, 25]
+    target_rect: [808, 28, 1126, 28]
+    target_name_rect: [806, 5, 1112, 22]
     player_rects:
-      - [16, 32, 164, 32]
-      - [16, 47, 164, 47]
-      - [16, 61, 164, 61]
+      - [16, 32, 218, 32]
+      - [16, 47, 218, 47]
+      - [16, 61, 218, 61]
     web:
       port: ":2223"
     macros_base_url: "http://192.168.1.73:8089/"
