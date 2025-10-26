@@ -25,7 +25,7 @@ client_config:
     macros_base_url: "http://192.168.1.73:8088/"
   mw_second:
     cuda_base_url: "http://192.168.1.60:2224/"
-    resolution: [1920, 1080]
+    resolution: [1920, 1200]
     exclude_bounds:
       - [1, 1, 173, 81] # stats
       - [1, 654, 354, 1043] # chat
