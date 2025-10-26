@@ -48,12 +48,16 @@ func StartHttpServer(cnf *config.Config) {
 	http.HandleFunc("/draw", func(w http.ResponseWriter, r *http.Request) {
 		ClearOverlay(Hwnd)
 		for _, v := range cnf.ClientConfig.ExcludeBounds {
+			fmt.Println("draw", uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]))
 			Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
 		}
 		for _, v := range cnf.ClientConfig.PlayerRects {
+			fmt.Println("draw", uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]))
 			Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
 		}
+		fmt.Println("draw", uintptr(cnf.ClientConfig.TargetRect[0]), uintptr(cnf.ClientConfig.TargetRect[1]), uintptr(cnf.ClientConfig.TargetRect[2]), uintptr(cnf.ClientConfig.TargetRect[3]))
 		Draw(Hwnd, uintptr(cnf.ClientConfig.TargetRect[0]), uintptr(cnf.ClientConfig.TargetRect[1]), uintptr(cnf.ClientConfig.TargetRect[2]), uintptr(cnf.ClientConfig.TargetRect[3]), "")
+		fmt.Println("draw", uintptr(cnf.ClientConfig.TargetNameRect[0]), uintptr(cnf.ClientConfig.TargetNameRect[1]), uintptr(cnf.ClientConfig.TargetNameRect[2]), uintptr(cnf.ClientConfig.TargetNameRect[3]))
 		Draw(Hwnd, uintptr(cnf.ClientConfig.TargetNameRect[0]), uintptr(cnf.ClientConfig.TargetNameRect[1]), uintptr(cnf.ClientConfig.TargetNameRect[2]), uintptr(cnf.ClientConfig.TargetNameRect[3]), "")
 	})
 	http.HandleFunc("/clear", func(w http.ResponseWriter, r *http.Request) {
