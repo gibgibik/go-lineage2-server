@@ -11,11 +11,11 @@ client_config:
       - [2353, 3, 2559, 207] # map
       - [2507, 884, 2559, 1299] #global panel
       - [2483, 1313, 2552, 1352] # global panel row
-      - [1208, 713, 1358, 831] #player box
+      - [1208, 656, 1358, 831] #player box
     npc_threshold: 0.9995
     npc_nms: 0.4
     target_rect: [1058, 28, 1373, 28]
-    target_name_rect: [1058, 2, 1248, 25]
+    target_name_rect: [1058, 2, 1357, 25]
     player_rects:
       - [21, 32, 336, 32]
       - [21, 47, 336, 47]
@@ -25,25 +25,25 @@ client_config:
     macros_base_url: "http://192.168.1.73:8088/"
   mw_second:
     cuda_base_url: "http://192.168.1.60:2224/"
-    resolution: [2880, 1800]
+    resolution: [1920, 1080]
     exclude_bounds:
-      - [1, 1, 341, 81] # stats
-      - [1, 991, 411, 1406] # chat
-      - [2, 1412, 2558, 1434] #bottom panel
-      - [1035, 2, 1378, 50] # target
-      - [1039, 1092, 1591, 1408] #skill panel
-      - [2353, 3, 2559, 207] # map
-      - [2507, 884, 2559, 1299] #global panel
-      - [2483, 1313, 2552, 1352] # global panel row
-      - [1208, 713, 1358, 831] #player box
+      - [1, 1, 173, 81] # stats
+      - [1, 654, 354, 1043] # chat
+      - [2, 1053, 1979, 1075] #bottom panel
+      - [857, 2, 1064, 50] # target
+      - [724, 784, 1283, 1051] #skill panel
+      - [1712, 3, 1918, 228] # map
+      - [1871, 370, 1919, 788] #global panel
+      - [1590, 960, 1906, 1050] # global panel row
+      - [852, 431, 1103, 719] #player box
     npc_threshold: 0.9995
     npc_nms: 0.4
-    target_rect: [1058, 28, 1373, 28]
-    target_name_rect: [1058, 2, 1248, 25]
+    target_rect: [874, 28, 1056, 28]
+    target_name_rect: [870, 2, 1044, 25]
     player_rects:
-      - [21, 32, 336, 32]
-      - [21, 47, 336, 47]
-      - [21, 61, 336, 61]
+      - [16, 32, 164, 32]
+      - [16, 47, 164, 47]
+      - [16, 61, 164, 61]
     web:
       port: ":2223"
     macros_base_url: "http://192.168.1.73:8089/"
