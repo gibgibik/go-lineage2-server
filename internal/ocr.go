@@ -33,7 +33,7 @@ func newOcrClient(cnf config.Client) *ocrClient {
 	return &ocrClient{excludeBounds: excludeBounds, cnf: cnf}
 }
 
-func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
+func (cl *ocrClient) findBounds(isTest bool) (*core.BoxesStruct, error) {
 	CurrentImg.Lock()
 	if len(CurrentImg.ImageJpeg) == 0 {
 		return nil, errors.New("image not found")
@@ -58,10 +58,12 @@ func (cl *ocrClient) findBounds() (*core.BoxesStruct, error) {
 	if err != nil {
 		return boxes, err
 	}
-	//ClearOverlay(Hwnd)
-	//for _, v := range boxes.Boxes {
-	//	Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
-	//}
+	if isTest {
+		ClearOverlay(Hwnd)
+		for _, v := range boxes.Boxes {
+			Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
+		}
+	}
 	return boxes, err
 }
 

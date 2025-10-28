@@ -44,6 +44,7 @@ func StartHttpServer(cnf *config.Config) {
 	//	defer StatLock.RUnlock()
 	//})
 	http.HandleFunc("/findBounds", findBoundsHandler)
+	http.HandleFunc("/findBoundsTest", findBoundsHandlerTest)
 	http.HandleFunc("/getCurrentTarget", getCurrentTarget)
 	http.HandleFunc("/draw", func(w http.ResponseWriter, r *http.Request) {
 		ClearOverlay(Hwnd)
@@ -180,7 +181,41 @@ func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {
 	//})
 	g.Go(func() error {
 		start := time.Now()
-		bounds, err := ocrCl.findBounds()
+		bounds, err := ocrCl.findBounds(false)
+		elapsed := time.Since(start)
+
+		fmt.Printf("Execution bounds took %s\n", elapsed)
+
+		if err != nil {
+			return err
+		}
+		writeMut.Lock()
+		defer writeMut.Unlock()
+		result.Boxes = bounds.Boxes
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		createRequestError(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res, err := json2.Marshal(result)
+	if err != nil {
+		createRequestError(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writer.Write(res)
+	return
+}
+
+func findBoundsHandlerTest(writer http.ResponseWriter, request *http.Request) {
+	ctx := context.Background()
+	g, ctx := errgroup.WithContext(ctx)
+	var result struct {
+		Boxes [][]int `:"boxes"`
+	}
+	g.Go(func() error {
+		start := time.Now()
+		bounds, err := ocrCl.findBounds(true)
 		elapsed := time.Since(start)
 
 		fmt.Printf("Execution bounds took %s\n", elapsed)

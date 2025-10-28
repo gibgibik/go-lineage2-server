@@ -19,15 +19,15 @@ func IniHttpClient(baseUrl string) {
 	HttpCl = &core.HttpClient{
 		BaseUrl: baseUrl,
 		Client: &http.Client{
-			Timeout: time.Second,
+			Timeout: time.Millisecond * 20,
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
-					Timeout:   time.Second,
+					Timeout:   time.Millisecond * 20,
 					KeepAlive: 30 * time.Second, // Persistent connections
 				}).DialContext,
 				MaxIdleConns:        5,                // Total idle connections
 				IdleConnTimeout:     90 * time.Second, // Keep idle connection alive
-				TLSHandshakeTimeout: time.Second,
+				TLSHandshakeTimeout: time.Millisecond * 20,
 			},
 		},
 	}

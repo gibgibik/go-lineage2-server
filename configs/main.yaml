@@ -12,6 +12,7 @@ client_config:
       - [2507, 884, 2559, 1299] #global panel
       - [2483, 1313, 2552, 1352] # global panel row
       - [1208, 656, 1358, 831] #player box
+      - [676, 1, 852, 51] #pet box
     npc_threshold: 0.9995
     npc_nms: 0.4
     target_rect: [1058, 28, 1373, 28]

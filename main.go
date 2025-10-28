@@ -74,6 +74,8 @@ func mainRun(hwnd uintptr) {
 		"-f", "image2pipe",
 		"-vcodec", "mjpeg", // або "png"
 		"-q:v", "1",
+		"-fflags", "nobuffer", "-flush_packets", "1",
+		//"-flags", "low_delay",
 		"-s", fmt.Sprintf("%vx%v", config.Cnf.ClientConfig.Resolution[0], config.Cnf.ClientConfig.Resolution[1]),
 		"pipe:1",
 	)
