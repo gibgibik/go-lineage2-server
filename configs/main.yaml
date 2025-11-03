@@ -11,7 +11,7 @@ client_config:
       - [2353, 3, 2559, 207] # map
       - [2507, 884, 2559, 1299] #global panel
       - [2483, 1313, 2552, 1352] # global panel row
-      - [1208, 656, 1358, 831] #player box
+      - [1115, 557, 1579, 922] #player box
       - [676, 1, 852, 51] #pet box
     npc_threshold: 0.9995
     npc_nms: 0.4
