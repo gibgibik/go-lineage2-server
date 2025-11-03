@@ -136,7 +136,6 @@ func mainRun(hwnd uintptr) {
 		}
 		//elapsed := time.Since(start)
 		//fmt.Printf("Execution took %s\n", elapsed)
-		fmt.Println("sending data", config.Cnf.ClientConfig.MacrosBaseUrl)
 		_, err = macros.HttpCl.Client.Post(macros.HttpCl.BaseUrl+"api/stats", "application/json", bytes.NewBuffer(buf))
 		if err != nil {
 			fmt.Println("Write stats error:", err)
