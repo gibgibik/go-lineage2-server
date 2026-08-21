@@ -14,7 +14,6 @@ import (
 	"image/jpeg"
 	"log"
 	"math"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -74,7 +73,8 @@ func mainRun(hwnd uintptr) {
 		"-f", "image2pipe",
 		"-vcodec", "mjpeg", // або "png"
 		"-q:v", "1",
-		"-fflags", "nobuffer", "-flush_packets", "1",
+		"-fflags", "nobuffer",
+		"-flush_packets", "1",
 		//"-flags", "low_delay",
 		"-s", fmt.Sprintf("%vx%v", config.Cnf.ClientConfig.Resolution[0], config.Cnf.ClientConfig.Resolution[1]),
 		"pipe:1",
@@ -87,8 +87,8 @@ func mainRun(hwnd uintptr) {
 		log.Fatal(err)
 	}
 	reader := bufio.NewReader(stdout)
-	maskF, _ := os.Open("party_pointer_mask.jpeg")
-	defer maskF.Close()
+	//maskF, _ := os.Open("party_pointer_mask.jpeg")
+	//defer maskF.Close()
 	//mask, err := jpeg.Decode(maskF)
 	//if err != nil {
 	//	panic(err)
@@ -105,13 +105,34 @@ func mainRun(hwnd uintptr) {
 	for {
 		//start := time.Now()
 		frame, err := readNextJPEGFrame(reader)
-		internal.CurrentImg.Lock()
-		internal.CurrentImg.ImageJpeg = frame
-		internal.CurrentImg.Unlock()
+		//for {
+		//	next, err := readNextJPEGFrame(reader)
+		//	if err != nil {
+		//		break
+		//	}
+		//	frame = next
+		//	// Check if more data is immediately available
+		//	if reader.Buffered() == 0 {
+		//		break
+		//	}
+		//}
+		//if frame == nil {
+		//	// No frame available, read one blocking
+		//	var err error
+		//	frame, err = readNextJPEGFrame(reader)
+		//	if err != nil {
+		//		fmt.Println("Read frame error:", err)
+		//		break
+		//	}
+		//}
 		if err != nil {
 			fmt.Println("Read frame error:", err)
 			break
 		}
+
+		internal.CurrentImg.Lock()
+		internal.CurrentImg.ImageJpeg = frame
+		internal.CurrentImg.Unlock()
 		imgJpeg, err := jpeg.Decode(bytes.NewReader(frame))
 		if err != nil {
 			panic(err)
@@ -180,29 +201,29 @@ func handlePlayerState(percent float64, imgJpeg image.Image, playerStat entity.P
 		switch ss.colorToCheck {
 		case yellowCheck:
 			if percent > 0 {
-				//fmt.Print("cp ", percent)
+				fmt.Print("cp ", percent)
 				playerStat.CP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		case redCheck:
 			if percent > 0 {
-				//fmt.Print("hp ", percent)
+				fmt.Print("hp ", percent)
 				playerStat.HP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		case blueCheck:
 			if percent > 0 {
-				//fmt.Print("mp ", percent)
+				fmt.Print("mp ", percent)
 
 				playerStat.MP = entity.DefaultStat{Percent: percent, LastUpdate: lastUpdate}
 			}
 		}
 	}
-	//fmt.Println("")
+	fmt.Print("\r")
 	macros.Stat.Player[currentPid] = playerStat
 }
 
 func handleTargetState(imgJpeg image.Image, currentPid uint32, lastUpdate int64) (float64, entity.PlayerStat) {
 	targetDelta := uint8(20)
-	targetR, targetG, targetB := uint8(108), uint8(23), uint8(13)
+	targetR, targetG, targetB := uint8(161), uint8(57), uint8(64)
 	//internal.ClearOverlay(internal.Hwnd)
 	//internal.Draw(internal.Hwnd, uintptr(targetRect.Min.X), uintptr(targetRect.Min.Y), uintptr(targetRect.Max.X), uintptr(targetRect.Max.Y+2), "")
 	var targetResultRes int
@@ -250,11 +271,11 @@ func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck ui
 	var targetR, targetG, targetB uint8
 	switch colorToCheck {
 	case yellowCheck:
-		targetR, targetG, targetB = uint8(125), uint8(90), uint8(19)
+		targetR, targetG, targetB = uint8(215), uint8(142), uint8(23)
 	case redCheck:
-		targetR, targetG, targetB = uint8(135), uint8(30), uint8(20)
+		targetR, targetG, targetB = uint8(161), uint8(57), uint8(64)
 	case blueCheck:
-		targetR, targetG, targetB = uint8(8), uint8(68), uint8(159)
+		targetR, targetG, targetB = uint8(65), uint8(121), uint8(206)
 	}
 	var maxX = 0
 	for x := rect.Max.X; x >= rect.Min.X; x-- {
@@ -281,16 +302,6 @@ func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck ui
 	//return round(matchCount/float64(rect.Max.X-rect.Min.X)*100, 2)
 } // Function to check if the pixel is blue based on the threshold
 
-func isBlue(r, g, b, threshold uint8) bool {
-	return b > r+threshold && b > g+threshold
-}
-func isRed(r, g, b, threshold uint8) bool {
-	return r > g+threshold && r > b+threshold
-}
-func isYellow(r, g, b, threshold uint8) bool {
-	// Yellow is when both red and green are higher than blue with the threshold
-	return r > b+threshold && g > b+threshold
-}
 func round(val float64, precision uint) float64 {
 	ratio := math.Pow(10, float64(precision))
 	return math.Round(val*ratio) / ratio

@@ -10,6 +10,7 @@ import (
 	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"image"
 	"image/jpeg"
+	"os"
 	"sync"
 )
 
@@ -42,6 +43,7 @@ func (cl *ocrClient) findBounds(isTest bool) (*core.BoxesStruct, error) {
 	copy(cpImg, CurrentImg.ImageJpeg)
 	CurrentImg.Unlock()
 
+	fmt.Println("starttt")
 	res, err := core.HttpCl.FindBounds(entity.GetBoundsConfig{
 		ExcludeBounds: cl.excludeBounds,
 		NpcThreshold:  cl.cnf.NpcThreshold,
@@ -58,12 +60,12 @@ func (cl *ocrClient) findBounds(isTest bool) (*core.BoxesStruct, error) {
 	if err != nil {
 		return boxes, err
 	}
-	if isTest {
-		ClearOverlay(Hwnd)
-		for _, v := range boxes.Boxes {
-			Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
-		}
-	}
+	//if isTest {
+	//	ClearOverlay(Hwnd)
+	//	for _, v := range boxes.Boxes {
+	//		Draw(0x008000, Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
+	//	}
+	//}
 	return boxes, err
 }
 
@@ -91,9 +93,11 @@ func (cl *ocrClient) findTargetName() ([]byte, error) {
 			Y: config.Cnf.ClientConfig.TargetNameRect[3],
 		},
 	})
+
 	var imgB bytes.Buffer
 	jpeg.Encode(&imgB, subImg, &jpeg.Options{Quality: 100})
 	//if err != nil {
+	_ = os.WriteFile("output.jpg", imgB.Bytes(), 0644)
 	//	return nil, err
 	//}
 

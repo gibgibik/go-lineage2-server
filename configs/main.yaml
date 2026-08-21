@@ -1,4 +1,31 @@
 client_config:
+  lu4:
+    cuda_base_url: "http://127.0.0.1:2224/"
+#    resolution: [3840, 2160]
+    resolution: [2560, 1440]
+    exclude_bounds:
+      - [1, 1, 341, 101] # stats
+      - [1, 1052, 381, 1405] # chat
+      - [2, 1412, 2558, 1434] #bottom panel
+      - [1257, 2, 1614, 104] # target
+      - [1245, 1278, 1773, 1405] #skill panel
+      - [2280, 3, 2559, 297] # map
+#      - [2507, 884, 2559, 1299] #global panel
+#      - [2483, 1313, 2552, 1352] # global panel row
+      - [1115, 557, 1579, 922] #player box
+#      - [676, 1, 852, 51] #pet box
+    npc_threshold: 0.9995
+    npc_nms: 0.4
+    target_rect: [1327, 100, 1651, 100]
+    target_name_rect: [1359, 10, 1569, 47]
+    player_rects:
+      - [108, 54, 368, 54]
+      - [108, 73, 380, 73]
+      - [108, 91, 392, 91]
+    party_rects: []
+    web:
+      port: ":2223"
+    macros_base_url: "http://192.168.1.73:8088/"
   mw:
     cuda_base_url: "http://127.0.0.1:2224/"
     resolution: [2560, 1440]

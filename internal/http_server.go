@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -48,18 +49,17 @@ func StartHttpServer(cnf *config.Config) {
 	http.HandleFunc("/getCurrentTarget", getCurrentTarget)
 	http.HandleFunc("/draw", func(w http.ResponseWriter, r *http.Request) {
 		ClearOverlay(Hwnd)
-		for _, v := range cnf.ClientConfig.ExcludeBounds {
-			fmt.Println("draw", uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]))
-			Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
-		}
-		for _, v := range cnf.ClientConfig.PlayerRects {
-			fmt.Println("draw", uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]))
-			Draw(Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
-		}
+		//for _, v := range cnf.ClientConfig.ExcludeBounds {
+		//	fmt.Println("draw", uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]))
+		//	Draw(0x008000, Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
+		//}
+		Draw(0x008000, Hwnd, uintptr(cnf.ClientConfig.PlayerRects[0][0]), uintptr(cnf.ClientConfig.PlayerRects[0][1]), uintptr(cnf.ClientConfig.PlayerRects[0][2]), uintptr(cnf.ClientConfig.PlayerRects[0][3]), "")
+		Draw(0x008000, Hwnd, uintptr(cnf.ClientConfig.PlayerRects[1][0]), uintptr(cnf.ClientConfig.PlayerRects[1][1]), uintptr(cnf.ClientConfig.PlayerRects[1][2]), uintptr(cnf.ClientConfig.PlayerRects[1][3]), "")
+		Draw(0x008000, Hwnd, uintptr(cnf.ClientConfig.PlayerRects[2][0]), uintptr(cnf.ClientConfig.PlayerRects[2][1]), uintptr(cnf.ClientConfig.PlayerRects[2][2]), uintptr(cnf.ClientConfig.PlayerRects[2][3]), "")
 		fmt.Println("draw", uintptr(cnf.ClientConfig.TargetRect[0]), uintptr(cnf.ClientConfig.TargetRect[1]), uintptr(cnf.ClientConfig.TargetRect[2]), uintptr(cnf.ClientConfig.TargetRect[3]))
-		Draw(Hwnd, uintptr(cnf.ClientConfig.TargetRect[0]), uintptr(cnf.ClientConfig.TargetRect[1]), uintptr(cnf.ClientConfig.TargetRect[2]), uintptr(cnf.ClientConfig.TargetRect[3]), "")
-		fmt.Println("draw", uintptr(cnf.ClientConfig.TargetNameRect[0]), uintptr(cnf.ClientConfig.TargetNameRect[1]), uintptr(cnf.ClientConfig.TargetNameRect[2]), uintptr(cnf.ClientConfig.TargetNameRect[3]))
-		Draw(Hwnd, uintptr(cnf.ClientConfig.TargetNameRect[0]), uintptr(cnf.ClientConfig.TargetNameRect[1]), uintptr(cnf.ClientConfig.TargetNameRect[2]), uintptr(cnf.ClientConfig.TargetNameRect[3]), "")
+		//Draw(0x008000, Hwnd, uintptr(cnf.ClientConfig.TargetRect[0]), uintptr(cnf.ClientConfig.TargetRect[1]), uintptr(cnf.ClientConfig.TargetRect[2]), uintptr(cnf.ClientConfig.TargetRect[3]), "")
+		//fmt.Println("draw", uintptr(cnf.ClientConfig.TargetNameRect[0]), uintptr(cnf.ClientConfig.TargetNameRect[1]), uintptr(cnf.ClientConfig.TargetNameRect[2]), uintptr(cnf.ClientConfig.TargetNameRect[3]))
+		//Draw(0x008000, Hwnd, uintptr(cnf.ClientConfig.TargetNameRect[0]), uintptr(cnf.ClientConfig.TargetNameRect[1]), uintptr(cnf.ClientConfig.TargetNameRect[2]), uintptr(cnf.ClientConfig.TargetNameRect[3]), "")
 	})
 	http.HandleFunc("/clear", func(w http.ResponseWriter, r *http.Request) {
 		ClearOverlay(Hwnd)
@@ -73,7 +73,8 @@ func StartHttpServer(cnf *config.Config) {
 		}
 		cpImg := make([]byte, len(CurrentImg.ImageJpeg))
 		copy(cpImg, CurrentImg.ImageJpeg)
-		resp, _ := core.HttpCl.Client.Post("http://127.0.0.1:2224/test", "application/json", bytes.NewBuffer(cpImg))
+		err := os.WriteFile("output.jpg", cpImg, 0644)
+		resp, _ := core.HttpCl.Client.Post("http://127.0.0.1:2224/findAll", "application/json", bytes.NewBuffer(cpImg))
 		defer resp.Body.Close()
 		res, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -81,7 +82,7 @@ func StartHttpServer(cnf *config.Config) {
 			return
 		}
 		fmt.Println(len(res))
-		w.Header().Set("Content-Type", "image/jpeg")
+		//w.Header().Set("Content-Type", "image/jpeg")
 		w.Write(res)
 	})
 	http.HandleFunc("/init", func(writer http.ResponseWriter, request *http.Request) {

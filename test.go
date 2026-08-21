@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/gibgibik/go-lineage2-server/internal"
+	"time"
 )
 
 func main() {
-	fmt.Println(internal.GetPids())
+	for {
+		fmt.Println(time.Now())
+		time.Sleep(1 * time.Second)
+	}
 }

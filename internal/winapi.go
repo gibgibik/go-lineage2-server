@@ -159,12 +159,12 @@ func InitWinApi(mainRun func(hwnd uintptr)) {
 	}
 }
 
-func Draw(hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr, text string) {
+func Draw(color uintptr, hwnd uintptr, left uintptr, top uintptr, right uintptr, bottom uintptr, text string) {
 	hdc, _, _ := procGetDC.Call(hwnd)
 	if left != 0 && top != 0 && right != 0 && bottom != 0 {
 
-		// Create red pen (BGR format: 0x00RRGGBB → 0x000000FF = red)
-		pen, _, _ := procCreatePen.Call(PS_SOLID, 3, 0x008000)
+		// Create red pen (BGR format: 0x00RRGGBB → 0x000000FF = red) 0x008000
+		pen, _, _ := procCreatePen.Call(PS_SOLID, 3, color)
 		oldPen, _, _ := procSelectObject.Call(hdc, pen)
 
 		// Select NULL_BRUSH to avoid filling the rectangle
@@ -254,7 +254,7 @@ func GetPids() map[uint32]string {
 		//	//return "", fmt.Errorf("GetWindowTextW failed: %v", err)
 		//} else {
 		//if pid == 26228 {
-		if syscall.UTF16ToString(clsBuf) == "mwUnrealWWindowsViewportWindow" {
+		if syscall.UTF16ToString(clsBuf) == "UnrealWindow" {
 			title := getWindowTextSafe(hwnd)
 			fmt.Println(pid, hwnd)
 			result[pid] = title
