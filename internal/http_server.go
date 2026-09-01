@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"context"
 	json2 "encoding/json"
 	"errors"
@@ -10,7 +9,6 @@ import (
 	"github.com/gibgibik/go-lineage2-server/internal/core"
 	"github.com/gibgibik/go-lineage2-server/internal/macros"
 	"golang.org/x/sync/errgroup"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -74,16 +72,16 @@ func StartHttpServer(cnf *config.Config) {
 		cpImg := make([]byte, len(CurrentImg.ImageJpeg))
 		copy(cpImg, CurrentImg.ImageJpeg)
 		err := os.WriteFile("output.jpg", cpImg, 0644)
-		resp, _ := core.HttpCl.Client.Post("http://127.0.0.1:2224/findAll", "application/json", bytes.NewBuffer(cpImg))
-		defer resp.Body.Close()
-		res, err := io.ReadAll(resp.Body)
+		//resp, _ := core.HttpCl.Client.Post("http://127.0.0.1:2224/findAll", "application/json", bytes.NewBuffer(cpImg))
+		//defer resp.Body.Close()
+		//res, err := io.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Println("read error", err)
 			return
 		}
-		fmt.Println(len(res))
-		//w.Header().Set("Content-Type", "image/jpeg")
-		w.Write(res)
+		//fmt.Println(len(res))
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write(cpImg)
 	})
 	http.HandleFunc("/init", func(writer http.ResponseWriter, request *http.Request) {
 		result := struct {

@@ -70,7 +70,7 @@ client_config:
     target_rect: [808, 28, 1126, 28]
     target_name_rect: [806, 5, 1112, 22]
     player_rects:
-      - [16, 32, 218, 32]
+      - [104, 51, 352, 51]
       - [16, 47, 218, 47]
       - [16, 61, 218, 61]
     party_rects:
