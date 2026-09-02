@@ -15,6 +15,7 @@ import (
 	"log"
 	"math"
 	"os/exec"
+	"sync"
 	"time"
 )
 
@@ -102,42 +103,49 @@ func mainRun(hwnd uintptr) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	//fmt.Println(internal.PidsMap)
-	var frame []byte
-	var lastFrame []byte
+
+	// Background reader: continuously pull frames from the stream and always
+	// keep only the most recent one. This decouples reading from processing so
+	// the consumer below always works on the latest available frame instead of
+	// blocking on / discarding frames in a broken drain loop.
+	var latest struct {
+		sync.Mutex
+		data []byte
+		err  error
+	}
+	go func() {
+		for {
+			f, ferr := readNextJPEGFrame(reader)
+			latest.Lock()
+			if ferr != nil {
+				latest.err = ferr
+				latest.Unlock()
+				return
+			}
+			if len(f) > 0 {
+				latest.data = f
+			}
+			latest.Unlock()
+		}
+	}()
+
 	for {
 		//start := time.Now()
-		for {
-			lastFrame, err = readNextJPEGFrame(reader)
-			if len(lastFrame) > 0 {
-				frame = lastFrame
-			}
-			if err != nil || len(lastFrame) == 0 {
-				break
-			}
-		}
-		//for {
-		//	next, err := readNextJPEGFrame(reader)
-		//	if err != nil {
-		//		break
-		//	}
-		//	frame = next
-		//	// Check if more data is immediately available
-		//	if reader.Buffered() == 0 {
-		//		break
-		//	}
-		//}
-		//if frame == nil {
-		//	// No frame available, read one blocking
-		//	var err error
-		//	frame, err = readNextJPEGFrame(reader)
-		//	if err != nil {
-		//		fmt.Println("Read frame error:", err)
-		//		break
-		//	}
-		//}
-		if err != nil {
-			fmt.Println("Read frame error:", err)
+
+		// Grab the newest frame produced by the reader goroutine.
+		latest.Lock()
+		frame := latest.data
+		readErr := latest.err
+		latest.Unlock()
+
+		if readErr != nil {
+			fmt.Println("Read frame error:", readErr)
 			break
+		}
+		if frame == nil {
+			// No frame decoded yet, wait for the reader to produce one.
+			time.Sleep(5 * time.Millisecond)
+			continue
 		}
 
 		internal.CurrentImg.Lock()
