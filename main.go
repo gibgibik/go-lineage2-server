@@ -102,9 +102,19 @@ func mainRun(hwnd uintptr) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	//fmt.Println(internal.PidsMap)
+	var frame []byte
+	var lastFrame []byte
 	for {
 		//start := time.Now()
-		frame, err := readNextJPEGFrame(reader)
+		for {
+			lastFrame, err = readNextJPEGFrame(reader)
+			if len(lastFrame) > 0 {
+				frame = lastFrame
+			}
+			if err != nil || len(lastFrame) == 0 {
+				break
+			}
+		}
 		//for {
 		//	next, err := readNextJPEGFrame(reader)
 		//	if err != nil {
