@@ -4,9 +4,10 @@ client_config:
 #    resolution: [3840, 2160]
     resolution: [2560, 1440]
     exclude_bounds:
-      - [1, 1, 341, 101] # stats
+      - [1, 1, 695, 110] # stats
       - [1, 1052, 381, 1405] # chat
       - [2, 1412, 2558, 1434] #bottom panel
+      - [8, 105, 251, 259] #party
       - [1257, 2, 1614, 104] # target
       - [1245, 1278, 1773, 1405] #skill panel
       - [2280, 3, 2559, 297] # map

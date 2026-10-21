@@ -5,16 +5,17 @@ import (
 	json2 "encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gibgibik/go-lineage2-server/internal/config"
-	"github.com/gibgibik/go-lineage2-server/internal/core"
-	"github.com/gibgibik/go-lineage2-server/internal/macros"
-	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gibgibik/go-lineage2-server/internal/config"
+	"github.com/gibgibik/go-lineage2-server/internal/core"
+	"github.com/gibgibik/go-lineage2-server/internal/macros"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -191,6 +192,13 @@ func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {
 		writeMut.Lock()
 		defer writeMut.Unlock()
 		result.Boxes = bounds.Boxes
+		ClearOverlay(Hwnd)
+		for _, v := range result.Boxes {
+			Draw(0x008000, Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
+		}
+		time.AfterFunc(time.Second*2, func() {
+			ClearOverlay(Hwnd)
+		})
 		return nil
 	})
 	if err := g.Wait(); err != nil {
@@ -230,6 +238,10 @@ func findBoundsHandlerTest(writer http.ResponseWriter, request *http.Request) {
 	if err := g.Wait(); err != nil {
 		createRequestError(writer, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	ClearOverlay(Hwnd)
+	for _, v := range result.Boxes {
+		Draw(0x008000, Hwnd, uintptr(v[0]), uintptr(v[1]), uintptr(v[2]), uintptr(v[3]), "")
 	}
 	res, err := json2.Marshal(result)
 	if err != nil {
