@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"io"
+	"os"
+	"sync"
+
 	"github.com/gibgibik/go-lineage2-server/internal/config"
 	"github.com/gibgibik/go-lineage2-server/internal/core"
 	"github.com/gibgibik/go-lineage2-server/pkg/entity"
-	"image"
-	"image/jpeg"
-	"os"
-	"sync"
 )
 
 var (
@@ -104,4 +106,32 @@ func (cl *ocrClient) findTargetName() ([]byte, error) {
 	return core.HttpCl.Post("findTargetName", imgB.Bytes())
 	//elapsed := time.Since(start)
 	//fmt.Printf("Execution name took %s\n", elapsed)
+}
+
+func (cl *ocrClient) checkScrydeCaptcha() ([]byte, error) {
+	//start := time.Now()
+	//img, err := screenshot.CaptureDisplay(0)
+
+	CurrentImg.Lock()
+	if len(CurrentImg.ImageJpeg) == 0 {
+		return nil, errors.New("image not found")
+	}
+	cpImg := make([]byte, len(CurrentImg.ImageJpeg))
+	copy(cpImg, CurrentImg.ImageJpeg)
+	CurrentImg.Unlock()
+	f, _ := os.OpenFile("Shot00002.jpg", os.O_RDONLY, 0)
+	cpImg, _ = io.ReadAll(f)
+	//Shot00002.jpg
+	result, err := core.HttpCl.Post("scrydeCaptcha", cpImg)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == nil {
+		return nil, nil
+	} else {
+
+	}
+
+	return nil, nil
 }

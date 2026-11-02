@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +45,7 @@ func StartHttpServer(cnf *config.Config) {
 	http.HandleFunc("/findBounds", findBoundsHandler)
 	http.HandleFunc("/findBoundsTest", findBoundsHandlerTest)
 	http.HandleFunc("/getCurrentTarget", getCurrentTarget)
+	http.HandleFunc("/scrydeCaptcha", checkScrydeCaptcha)
 	http.HandleFunc("/draw", func(w http.ResponseWriter, r *http.Request) {
 		ClearOverlay(Hwnd)
 		//for _, v := range cnf.ClientConfig.ExcludeBounds {
@@ -72,14 +72,10 @@ func StartHttpServer(cnf *config.Config) {
 		}
 		cpImg := make([]byte, len(CurrentImg.ImageJpeg))
 		copy(cpImg, CurrentImg.ImageJpeg)
-		err := os.WriteFile("output.jpg", cpImg, 0644)
+		// 		err := os.WriteFile("output.jpg", cpImg, 0644)
 		//resp, _ := core.HttpCl.Client.Post("http://127.0.0.1:2224/findAll", "application/json", bytes.NewBuffer(cpImg))
 		//defer resp.Body.Close()
 		//res, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("read error", err)
-			return
-		}
 		//fmt.Println(len(res))
 		w.Header().Set("Content-Type", "image/jpeg")
 		w.Write(cpImg)
@@ -158,6 +154,14 @@ func getCurrentTarget(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	writer.Write(buf)
+}
+
+func checkScrydeCaptcha(writer http.ResponseWriter, request *http.Request) {
+	response, err := ocrCl.checkScrydeCaptcha()
+	if err != nil {
+		return
+	}
+	writer.Write(response)
 }
 
 func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {
