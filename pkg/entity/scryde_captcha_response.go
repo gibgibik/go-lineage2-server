@@ -1,4 +1,4 @@
-package scryde
+package entity
 
 type Response struct {
 	TemplateCoordinates []int `json:"template_coordinates"`
