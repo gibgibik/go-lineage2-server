@@ -158,10 +158,11 @@ func getCurrentTarget(writer http.ResponseWriter, request *http.Request) {
 
 func checkScrydeCaptcha(writer http.ResponseWriter, request *http.Request) {
 	response, err := ocrCl.checkScrydeCaptcha()
-	if err != nil {
+	if err != nil || response == nil {
 		return
 	}
-	writer.Write(response)
+	encodedR, _ := json2.Marshal(response)
+	writer.Write(encodedR)
 }
 
 func findBoundsHandler(writer http.ResponseWriter, request *http.Request) {

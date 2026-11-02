@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -107,7 +108,7 @@ func (cl *ocrClient) findTargetName() ([]byte, error) {
 	//fmt.Printf("Execution name took %s\n", elapsed)
 }
 
-func (cl *ocrClient) checkScrydeCaptcha() ([]byte, error) {
+func (cl *ocrClient) checkScrydeCaptcha() (*entity.ScrydeCaptchaResponse, error) {
 	//start := time.Now()
 	//img, err := screenshot.CaptureDisplay(0)
 
@@ -129,8 +130,24 @@ func (cl *ocrClient) checkScrydeCaptcha() ([]byte, error) {
 	if result == nil {
 		return nil, nil
 	} else {
-
+		var parsedResult *entity.ScrydeCaptchaResponse
+		_ = json.Unmarshal(result, &parsedResult)
+		mainImg, _ := jpeg.Decode(bytes.NewReader(cpImg))
+		captcha := mainImg.(interface {
+			SubImage(r image.Rectangle) image.Image
+		}).SubImage(image.Rectangle{
+			Min: image.Point{
+				X: parsedResult.TemplateCoordinates[0],
+				Y: parsedResult.TemplateCoordinates[1],
+			},
+			Max: image.Point{
+				X: parsedResult.TemplateCoordinates[2],
+				Y: parsedResult.TemplateCoordinates[3],
+			},
+		})
+		var imgB bytes.Buffer
+		jpeg.Encode(&imgB, captcha, &jpeg.Options{Quality: 100})
+		parsedResult.Image = base64.StdEncoding.EncodeToString(imgB.Bytes())
+		return parsedResult, nil
 	}
-
-	return nil, nil
 }

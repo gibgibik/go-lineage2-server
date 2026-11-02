@@ -1,7 +1,8 @@
 package entity
 
-type Response struct {
-	TemplateCoordinates []int `json:"template_coordinates"`
-	InputCoordinates    []int `json:"input_coordinates"`
-	SubmitCoordinates   []int `json:"submit_coordinates"`
+type ScrydeCaptchaResponse struct {
+	Image               string `json:"image"`
+	TemplateCoordinates []int  `json:"template_coordinates"`
+	InputCoordinates    []int  `json:"input_coordinates"`
+	SubmitCoordinates   []int  `json:"submit_coordinates"`
 }
