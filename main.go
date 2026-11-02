@@ -6,10 +6,6 @@ import (
 	json2 "encoding/json"
 	"flag"
 	"fmt"
-	"github.com/gibgibik/go-lineage2-server/internal"
-	"github.com/gibgibik/go-lineage2-server/internal/config"
-	"github.com/gibgibik/go-lineage2-server/internal/macros"
-	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 	"image"
 	"image/jpeg"
 	"log"
@@ -17,6 +13,11 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/gibgibik/go-lineage2-server/internal"
+	"github.com/gibgibik/go-lineage2-server/internal/config"
+	"github.com/gibgibik/go-lineage2-server/internal/macros"
+	"github.com/gibgibik/go-lineage2-server/pkg/entity"
 )
 
 const (
@@ -88,13 +89,6 @@ func mainRun(hwnd uintptr) {
 		log.Fatal(err)
 	}
 	reader := bufio.NewReader(stdout)
-	//maskF, _ := os.Open("party_pointer_mask.jpeg")
-	//defer maskF.Close()
-	//mask, err := jpeg.Decode(maskF)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//hash1, _ := goimagehash.AverageHash(mask)
 	for i := 0; i < 3; i++ {
 		internal.GetPids()
 		if len(internal.PidsMap) > 0 {
@@ -241,7 +235,7 @@ func handlePlayerState(percent float64, imgJpeg image.Image, playerStat entity.P
 
 func handleTargetState(imgJpeg image.Image, currentPid uint32, lastUpdate int64) (float64, entity.PlayerStat) {
 	targetDelta := uint8(20)
-	targetR, targetG, targetB := uint8(161), uint8(57), uint8(64)
+	targetR, targetG, targetB := uint8(124), uint8(31), uint8(28)
 	//internal.ClearOverlay(internal.Hwnd)
 	//internal.Draw(internal.Hwnd, uintptr(targetRect.Min.X), uintptr(targetRect.Min.Y), uintptr(targetRect.Max.X), uintptr(targetRect.Max.Y+2), "")
 	var targetResultRes int
@@ -272,7 +266,7 @@ func handleTargetState(imgJpeg image.Image, currentPid uint32, lastUpdate int64)
 	if percent > 0 {
 		playerStat.Target.HpWasPresentAt = time.Now().UnixMilli()
 	}
-	if playerStat.Target.HpPercent >= 99 {
+	if playerStat.Target.HpPercent >= 97 {
 		if fullTargetHpUnchangedSince.IsZero() {
 			fullTargetHpUnchangedSince = time.Now()
 		}
@@ -289,11 +283,11 @@ func calculatePercent(imgJpeg image.Image, rect image.Rectangle, colorToCheck ui
 	var targetR, targetG, targetB uint8
 	switch colorToCheck {
 	case yellowCheck:
-		targetR, targetG, targetB = uint8(215), uint8(142), uint8(23)
+		targetR, targetG, targetB = uint8(165), uint8(114), uint8(0)
 	case redCheck:
-		targetR, targetG, targetB = uint8(161), uint8(57), uint8(64)
+		targetR, targetG, targetB = uint8(139), uint8(75), uint8(68)
 	case blueCheck:
-		targetR, targetG, targetB = uint8(65), uint8(121), uint8(206)
+		targetR, targetG, targetB = uint8(11), uint8(77), uint8(157)
 	}
 	var maxX = 0
 	for x := rect.Max.X; x >= rect.Min.X; x-- {

@@ -84,6 +84,15 @@ func StartHttpServer(cnf *config.Config) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		w.Write(cpImg)
 	})
+	http.HandleFunc("/drawStart", func(w http.ResponseWriter, r *http.Request) {
+		ClearOverlay(Hwnd)
+		for _, p := range cnf.ClientConfig.ExcludeBounds {
+			Draw(0x008000, Hwnd, uintptr(p[0]), uintptr(p[1]), uintptr(p[2]), uintptr(p[3]), "")
+		}
+		Draw(0xFFBF00, Hwnd, uintptr(cnf.ClientConfig.PlayerRects[0][0]), uintptr(cnf.ClientConfig.PlayerRects[0][1]), uintptr(cnf.ClientConfig.PlayerRects[0][2]), uintptr(cnf.ClientConfig.PlayerRects[0][3]+3), "")
+		Draw(0xFFBF00, Hwnd, uintptr(cnf.ClientConfig.PlayerRects[1][0]), uintptr(cnf.ClientConfig.PlayerRects[1][1]), uintptr(cnf.ClientConfig.PlayerRects[1][2]), uintptr(cnf.ClientConfig.PlayerRects[1][3]+3), "")
+		Draw(0xFFBF00, Hwnd, uintptr(cnf.ClientConfig.PlayerRects[2][0]), uintptr(cnf.ClientConfig.PlayerRects[2][1]), uintptr(cnf.ClientConfig.PlayerRects[2][2]), uintptr(cnf.ClientConfig.PlayerRects[2][3]+3), "")
+	})
 	http.HandleFunc("/init", func(writer http.ResponseWriter, request *http.Request) {
 		result := struct {
 			PidsData map[uint32]string

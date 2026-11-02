@@ -4,7 +4,7 @@ client_config:
 #    resolution: [3840, 2160]
     resolution: [2560, 1440]
     exclude_bounds:
-      - [1, 1, 695, 110] # stats
+      - [1, 1, 695, 628] # stats
       - [1, 1052, 381, 1405] # chat
       - [2, 1412, 2558, 1434] #bottom panel
       - [8, 105, 251, 259] #party
@@ -31,24 +31,22 @@ client_config:
     cuda_base_url: "http://127.0.0.1:2224/"
     resolution: [2560, 1440]
     exclude_bounds:
-      - [1, 1, 341, 81] # stats
-      - [1, 991, 411, 1406] # chat
+      - [1, 1, 384, 164] # stats
+      - [1, 991, 497, 1406] # chat
       - [2, 1412, 2558, 1434] #bottom panel
       - [1035, 2, 1378, 50] # target
       - [1039, 1092, 1591, 1408] #skill panel
       - [2353, 3, 2559, 207] # map
-      - [2507, 884, 2559, 1299] #global panel
-      - [2483, 1313, 2552, 1352] # global panel row
-      - [1115, 557, 1579, 922] #player box
-      - [676, 1, 852, 51] #pet box
+      - [2198, 1309, 2551, 1411] # global panel row
+      - [1115, 557, 1427, 985] #player box
     npc_threshold: 0.9995
     npc_nms: 0.4
-    target_rect: [1058, 28, 1373, 28]
-    target_name_rect: [1058, 2, 1357, 25]
+    target_rect: [1109, 30, 1304, 30]
+    target_name_rect: [1109, 2, 1304, 25]
     player_rects:
-      - [21, 32, 336, 32]
-      - [21, 47, 336, 47]
-      - [21, 61, 336, 61]
+      - [20, 112, 338, 112]
+      - [20, 122, 338, 122]
+      - [20, 138, 338, 138]
     party_rects: []
     web:
       port: ":2223"

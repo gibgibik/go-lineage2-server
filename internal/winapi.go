@@ -2,11 +2,12 @@ package internal
 
 import (
 	"fmt"
-	"github.com/gibgibik/go-lineage2-server/internal/config"
 	"sync"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/gibgibik/go-lineage2-server/internal/config"
 )
 
 const (
@@ -254,9 +255,9 @@ func GetPids() map[uint32]string {
 		//	//return "", fmt.Errorf("GetWindowTextW failed: %v", err)
 		//} else {
 		//if pid == 26228 {
-		if syscall.UTF16ToString(clsBuf) == "UnrealWindow" {
+		if syscall.UTF16ToString(clsBuf) == "ScrydeGameUnrealWWindowsViewportWindow" {
 			title := getWindowTextSafe(hwnd)
-			fmt.Println(pid, hwnd)
+			fmt.Println(pid, title)
 			result[pid] = title
 			PidsMap[pid] = hwnd
 		}
