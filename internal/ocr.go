@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"io"
 	"os"
 	"sync"
 
@@ -119,8 +118,8 @@ func (cl *ocrClient) checkScrydeCaptcha() ([]byte, error) {
 	cpImg := make([]byte, len(CurrentImg.ImageJpeg))
 	copy(cpImg, CurrentImg.ImageJpeg)
 	CurrentImg.Unlock()
-	f, _ := os.OpenFile("Shot00002.jpg", os.O_RDONLY, 0)
-	cpImg, _ = io.ReadAll(f)
+	//f, _ := os.OpenFile("Shot00002.jpg", os.O_RDONLY, 0)
+	//cpImg, _ = io.ReadAll(f)
 	//Shot00002.jpg
 	result, err := core.HttpCl.Post("scrydeCaptcha", cpImg)
 	if err != nil {
